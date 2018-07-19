@@ -31,6 +31,9 @@ import (
 //The `code` argument specifies the HTTP response code, usually 200.
 func JSON(w http.ResponseWriter, code int, data interface{}) {
 	bytes, err := json.Marshal(&data)
+  // Replaces & symbols properly in json within urls.
+  bytes = bytes.Replace(bytes, []byte("\\u0026"), []byte("&"), -1)
+
 	if err == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(code)
