@@ -17,24 +17,37 @@
 *
 *******************************************************************************/
 
-//Package backoff contains a helper function that creates a retry loop with an
-//exponential backoff.
-package backoff
+//Package retry contains helper methods that create retry loops using
+//different retry strategies.
+package retry
 
-import "time"
+import (
+	"time"
 
-//Retry takes a function (action) that returns an error, and two int64 values (x, y) as
-//parameters and creates a retry loop with an exponential backoff such that on failure (error return),
-//the action is called again after x seconds and this is incremented by a factor of 2 until y minutes
-//then it is keeps on repeating after y minutes till action succeeds (no error).
-func Retry(action func() error, x, y time.Duration) {
+	"github.com/sapcc/go-bits/logg"
+)
+
+//Strategy interface type contains methods for different retry strategies.
+type Strategy interface {
+	RetryUntilSuccessful(func() error)
+}
+
+//ExponentialBackoff options.
+type ExponentialBackoff struct {
+	Factor      int
+	MaxInterval time.Duration
+}
+
+//RetryUntilSuccessful creates a retry loop with an exponential backoff.
+func (eb ExponentialBackoff) RetryUntilSuccessful(action func() error) {
 	duration := time.Second
 	for {
 		err := action()
 		if err != nil {
-			duration *= x
-			if duration > y*time.Minute {
-				duration = y * time.Minute
+			logg.Error("%s", err)
+			duration *= time.Duration(eb.Factor)
+			if duration > eb.MaxInterval {
+				duration = eb.MaxInterval
 			}
 			time.Sleep(duration)
 			continue
