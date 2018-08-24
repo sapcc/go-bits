@@ -48,17 +48,13 @@ import (
 //
 //    cfg.Migrations = map[string]string{
 //        "001_initial.up.sql": `
-//            BEGIN;
 //            CREATE TABLE things (
 //                id   BIGSERIAL NOT NULL PRIMARY KEY,
 //                name TEXT NOT NULL,
 //            );
-//            COMMIT;
 //        `,
 //        "001_initial.down.sql": `
-//            BEGIN;
 //            DROP TABLE things;
-//            COMMIT;
 //        `,
 //    }
 //
@@ -98,6 +94,7 @@ func Connect(cfg Configuration) (*sql.DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to Postgres: %s", err.Error())
 		}
+		migrations = wrapDDLInTransactions(migrations)
 		dbNameForMigrate = "postgres"
 		dbDriverForMigrate, err = postgres.WithInstance(db, &postgres.Config{})
 	}
@@ -221,6 +218,14 @@ func stripWhitespace(in map[string]string) map[string]string {
 			strings.Join(strings.Fields(sql), " "),
 			"; ", ";\n", -1,
 		)
+	}
+	return out
+}
+
+func wrapDDLInTransactions(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for filename, sql := range in {
+		out[filename] = "BEGIN;\n" + strings.TrimSuffix(sql, ";\n") + ";\nCOMMIT;"
 	}
 	return out
 }
