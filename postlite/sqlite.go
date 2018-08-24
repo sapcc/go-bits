@@ -92,10 +92,10 @@ func traceQuery(query string, args []interface{}) {
 	logg.Debug(query + " [" + strings.Join(argStrings, ", ") + "]")
 }
 
-var skipInSqliteRx = regexp.MustCompile(`(?ms)^--\s*BEGIN\s+skip\s+in\s+sqlite\s*?$^--\s*END\s+skip\s+in\s+sqlite\s*?$`)
+var skipInSqliteRx = regexp.MustCompile(`(?ms)^\s*--\s*BEGIN\s+skip\s+in\s+sqlite\s*?$.*^\s*--\s*END\s+skip\s+in\s+sqlite\s*?$`)
 var bigserialNotNullPkRx = regexp.MustCompile(`(?i)BIGSERIAL\s+NOT\s+NULL\s+PRIMARY\s+KEY`)
 
-func translateSQLiteDDLToPostgres(migrations map[string]string) map[string]string {
+func translatePostgresDDLToSQLite(migrations map[string]string) map[string]string {
 	result := make(map[string]string, len(migrations))
 	for k, v := range migrations {
 		v = skipInSqliteRx.ReplaceAllString(v, "")

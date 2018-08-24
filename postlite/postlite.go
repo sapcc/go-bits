@@ -37,6 +37,7 @@ import (
 	"github.com/golang-migrate/migrate/database"
 	"github.com/golang-migrate/migrate/database/postgres"
 	"github.com/golang-migrate/migrate/database/sqlite3"
+	"github.com/golang-migrate/migrate/source"
 	bindata "github.com/golang-migrate/migrate/source/go_bindata"
 	//enable postgres driver for database/sql
 	_ "github.com/lib/pq"
@@ -73,50 +74,68 @@ type Configuration struct {
 //in-memory SQLite3 database otherwise. Use of SQLite3 is only safe in unit
 //tests! Unit tests may not be run in parallel!
 func Connect(cfg Configuration) (*sql.DB, error) {
-	migrations := stripWhitespace(cfg.Migrations)
+	migrations := cfg.Migrations
+	if cfg.PostgresURL == nil {
+		migrations = translatePostgresDDLToSQLite(migrations)
+	} else {
+		migrations = wrapDDLInTransactions(migrations)
+	}
+	migrations = stripWhitespace(migrations)
+
+	//use the "go-bindata" driver for github.com/golang-migrate/migrate
+	var assetNames []string
+	for name := range migrations {
+		assetNames = append(assetNames, name)
+	}
+	asset := func(name string) ([]byte, error) {
+		data, ok := migrations[name]
+		if ok {
+			return []byte(data), nil
+		}
+		return nil, &os.PathError{Op: "open", Path: name, Err: errors.New("not found")}
+	}
+
+	sourceDriver, err := bindata.WithInstance(bindata.Resource(assetNames, asset))
+	if err != nil {
+		return nil, err
+	}
 
 	var (
-		db                 *sql.DB
-		dbNameForMigrate   string
-		dbDriverForMigrate database.Driver
-		err                error
+		db      *sql.DB
+		dbd     database.Driver
+		dbdName string
 	)
+
 	if cfg.PostgresURL == nil {
-		db, err = connectToSQLite(cfg.OverrideDriverName)
+		db, dbd, err = connectToSQLite(cfg.OverrideDriverName, sourceDriver)
 		if err != nil {
 			return nil, fmt.Errorf("cannot create SQLite in-memory DB: %s", err.Error())
 		}
-		migrations = translateSQLiteDDLToPostgres(migrations)
-		dbNameForMigrate = "sqlite3"
-		dbDriverForMigrate, err = sqlite3.WithInstance(db, &sqlite3.Config{})
+		dbdName = "sqlite3"
 	} else {
-		db, err = connectToPostgres(cfg.PostgresURL, cfg.OverrideDriverName)
+		db, dbd, err = connectToPostgres(cfg.PostgresURL, cfg.OverrideDriverName)
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to Postgres: %s", err.Error())
 		}
-		migrations = wrapDDLInTransactions(migrations)
-		dbNameForMigrate = "postgres"
-		dbDriverForMigrate, err = postgres.WithInstance(db, &postgres.Config{})
+		dbdName = "postgres"
 	}
 
-	if err == nil {
-		err = migrateSchema(dbNameForMigrate, dbDriverForMigrate, migrations)
-	}
+	err = runMigration(migrate.NewWithInstance("go-bindata", sourceDriver, dbdName, dbd))
 	if err != nil {
 		return nil, fmt.Errorf("cannot apply database schema: %s", err.Error())
 	}
-
 	return db, nil
 }
 
-func connectToSQLite(driverName string) (*sql.DB, error) {
+func connectToSQLite(driverName string, sourceDriver source.Driver) (*sql.DB, database.Driver, error) {
 	if driverName == "" {
 		driverName = "sqlite3-postlite"
 	}
 	//see FAQ in go-sqlite3 README about the connection string
-	db, err := sql.Open(driverName, "file::memory:?mode=memory&cache=shared")
+	dsn := "file::memory:?mode=memory&cache=shared"
+	db, err := sql.Open(driverName, dsn)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	//wipe leftovers from previous test runs
@@ -130,15 +149,23 @@ func connectToSQLite(driverName string) (*sql.DB, error) {
 	} {
 		_, err := db.Exec(stmt)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return db, nil
+
+	//we cannot use `db` for migrate; the sqlite3 driver for migrate gets
+	//confused by the customizations in the sqlite3-postlite SQL driver
+	dbForMigrate, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+	dbd, err := sqlite3.WithInstance(dbForMigrate, &sqlite3.Config{})
+	return db, dbd, err
 }
 
 var dbNotExistErrRx = regexp.MustCompile(`^pq: database "([^"]+)" does not exist$`)
 
-func connectToPostgres(url *net_url.URL, driverName string) (*sql.DB, error) {
+func connectToPostgres(url *net_url.URL, driverName string) (*sql.DB, database.Driver, error) {
 	if driverName == "" {
 		driverName = "postgres"
 	}
@@ -149,12 +176,13 @@ func connectToPostgres(url *net_url.URL, driverName string) (*sql.DB, error) {
 	}
 	if err == nil {
 		//success
-		return db, nil
+		dbd, err := postgres.WithInstance(db, &postgres.Config{})
+		return db, dbd, err
 	}
 	match := dbNotExistErrRx.FindStringSubmatch(err.Error())
 	if match == nil {
 		//unexpected error
-		return nil, err
+		return nil, nil, err
 	}
 	dbName := match[1]
 
@@ -172,34 +200,19 @@ func connectToPostgres(url *net_url.URL, driverName string) (*sql.DB, error) {
 		db2.Close()
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	//now the actual database is there and we can connect to it
-	return sql.Open("postgres", url.String())
+	db, err = sql.Open("postgres", url.String())
+	if err != nil {
+		return nil, nil, err
+	}
+	dbd, err := postgres.WithInstance(db, &postgres.Config{})
+	return db, dbd, err
 }
 
-func migrateSchema(dbName string, dbDriver database.Driver, sqlMigrations map[string]string) error {
-	//use the "go-bindata" driver for github.com/mattes/migrate, but without
-	//actually using go-bindata (go-bindata stubbornly insists on making its
-	//generated functions public, but I don't want to pollute the API)
-	var assetNames []string
-	for name := range sqlMigrations {
-		assetNames = append(assetNames, name)
-	}
-	asset := func(name string) ([]byte, error) {
-		data, ok := sqlMigrations[name]
-		if ok {
-			return []byte(data), nil
-		}
-		return nil, &os.PathError{Op: "open", Path: name, Err: errors.New("not found")}
-	}
-
-	sourceDriver, err := bindata.WithInstance(bindata.Resource(assetNames, asset))
-	if err != nil {
-		return err
-	}
-	m, err := migrate.NewWithInstance("go-bindata", sourceDriver, dbName, dbDriver)
+func runMigration(m *migrate.Migrate, err error) error {
 	if err != nil {
 		return err
 	}
@@ -211,11 +224,14 @@ func migrateSchema(dbName string, dbDriver database.Driver, sqlMigrations map[st
 	return err
 }
 
+var sqlCommentRx = regexp.MustCompile(`--.*?(\n|$)`)
+
 func stripWhitespace(in map[string]string) map[string]string {
 	out := make(map[string]string, len(in))
 	for filename, sql := range in {
+		sqlWithoutComments := sqlCommentRx.ReplaceAllString(sql, "")
 		out[filename] = strings.Replace(
-			strings.Join(strings.Fields(sql), " "),
+			strings.Join(strings.Fields(sqlWithoutComments), " "),
 			"; ", ";\n", -1,
 		)
 	}
@@ -225,7 +241,7 @@ func stripWhitespace(in map[string]string) map[string]string {
 func wrapDDLInTransactions(in map[string]string) map[string]string {
 	out := make(map[string]string, len(in))
 	for filename, sql := range in {
-		out[filename] = "BEGIN;\n" + strings.TrimSuffix(sql, ";\n") + ";\nCOMMIT;"
+		out[filename] = "BEGIN;\n" + strings.TrimSuffix(strings.TrimSpace(sql), ";") + ";\nCOMMIT;"
 	}
 	return out
 }
