@@ -36,6 +36,7 @@ import (
 	"github.com/golang-migrate/migrate"
 	"github.com/golang-migrate/migrate/database"
 	"github.com/golang-migrate/migrate/database/postgres"
+	"github.com/golang-migrate/migrate/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/source/go_bindata"
 	//enable postgres driver for database/sql
 	_ "github.com/lib/pq"
@@ -79,28 +80,30 @@ func Connect(cfg Configuration) (*sql.DB, error) {
 	migrations := stripWhitespace(cfg.Migrations)
 
 	var (
-		db               *sql.DB
-		dbNameForMigrate string
-		err              error
+		db                 *sql.DB
+		dbNameForMigrate   string
+		dbDriverForMigrate database.Driver
+		err                error
 	)
 	if cfg.PostgresURL == nil {
 		db, err = connectToSQLite(cfg.OverrideDriverName)
 		if err != nil {
 			return nil, fmt.Errorf("cannot create SQLite in-memory DB: %s", err.Error())
 		}
-		dbNameForMigrate = "sqlite3"
 		migrations = translateSQLiteDDLToPostgres(migrations)
+		dbNameForMigrate = "sqlite3"
+		dbDriverForMigrate, err = sqlite3.WithInstance(db, &sqlite3.Config{})
 	} else {
 		db, err = connectToPostgres(cfg.PostgresURL, cfg.OverrideDriverName)
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to Postgres: %s", err.Error())
 		}
 		dbNameForMigrate = "postgres"
+		dbDriverForMigrate, err = postgres.WithInstance(db, &postgres.Config{})
 	}
 
-	dbDriver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err == nil {
-		err = migrateSchema(dbNameForMigrate, dbDriver, migrations)
+		err = migrateSchema(dbNameForMigrate, dbDriverForMigrate, migrations)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot apply database schema: %s", err.Error())
