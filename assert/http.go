@@ -32,14 +32,19 @@ import (
 	"testing"
 )
 
+//HTTPRequestBody is the type of field HTTPRequest.RequestBody.
+//It is implemented by StringData and JSONObject.
+type HTTPRequestBody interface {
+	GetRequestBody() (io.Reader, error)
+}
+
 //HTTPRequest is a HTTP request that gets executed by a unit test.
 type HTTPRequest struct {
 	//request properties
 	Method        string
 	Path          string
 	RequestHeader map[string]string
-	//request body
-	RequestJSON interface{} //if non-nil, will be encoded as JSON
+	RequestBody   HTTPRequestBody
 	//response properties
 	ExpectStatusCode int
 	//response body (only one of those may be set)
@@ -55,12 +60,12 @@ func (r HTTPRequest) Check(t *testing.T, handler http.Handler) {
 	t.Helper()
 
 	var requestBody io.Reader
-	if r.RequestJSON != nil {
-		body, err := json.Marshal(r.RequestJSON)
+	if r.RequestBody != nil {
+		var err error
+		requestBody, err = r.RequestBody.GetRequestBody()
 		if err != nil {
 			t.Fatal(err)
 		}
-		requestBody = bytes.NewReader([]byte(body))
 	}
 	request := httptest.NewRequest(r.Method, r.Path, requestBody)
 	if r.RequestHeader != nil {
