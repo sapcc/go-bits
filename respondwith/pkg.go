@@ -23,6 +23,7 @@
 package respondwith
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 )
@@ -30,11 +31,14 @@ import (
 //JSON serializes the given data into an HTTP response body
 //The `code` argument specifies the HTTP response code, usually 200.
 func JSON(w http.ResponseWriter, code int, data interface{}) {
-	bytes, err := json.Marshal(&data)
+	b, err := json.Marshal(&data)
+	// Replaces & symbols properly in json within urls.
+	b = bytes.Replace(b, []byte("\\u0026"), []byte("&"), -1)
+
 	if err == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(code)
-		w.Write(bytes)
+		w.Write(b)
 	} else {
 		http.Error(w, err.Error(), 500)
 	}
