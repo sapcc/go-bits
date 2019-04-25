@@ -83,6 +83,15 @@ func getDBContent(t *testing.T, db *sql.DB) string {
 		SELECT name FROM sqlite_master WHERE type='table'
 		AND name != 'schema_migrations' AND name NOT LIKE '%sqlite%'
 	`)
+	if err != nil {
+		//if this errors, then we're probably on Postgres, not on SQLite
+		rows, err = db.Query(`
+			SELECT table_name FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name != 'schema_migrations'
+			ORDER BY table_name
+		`)
+	}
+
 	failOnErr(t, err)
 	for rows.Next() {
 		var name string
