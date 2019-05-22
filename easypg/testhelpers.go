@@ -83,7 +83,7 @@ func getDBContent(t *testing.T, db *sql.DB) string {
 	rows, err := db.Query(`
 		SELECT table_name FROM information_schema.tables
 		WHERE table_schema = 'public' AND table_name != 'schema_migrations'
-		ORDER BY table_name
+		ORDER BY table_name COLLATE "C"
 	`)
 
 	failOnErr(t, err)
