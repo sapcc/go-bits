@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sapcc/go-bits/easypg/migrate"
-	"github.com/sapcc/go-bits/easypg/migrate/database"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/lib/pq"
+	"github.com/sapcc/go-bits/easypg/migrate"
+	"github.com/sapcc/go-bits/easypg/migrate/database"
 )
 
 func init() {
