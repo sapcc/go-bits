@@ -1,5 +1,7 @@
 # go-bits
 
+[![GoDoc](https://godoc.org/github.com/sapcc/go-bits?status.svg)](https://godoc.org/github.com/sapcc/go-bits)
+
 Some tiny pieces of Go code, extracted from their original applications for
 reusability. Each subdirectory is its own individual package. Feel free to add
 to this.
