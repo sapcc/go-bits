@@ -49,7 +49,7 @@ func ContextWithSIGINT(ctx context.Context) context.Context {
 // ListenAndServeContext is a wrapper around http.ListenAndServe() that additionally
 // shuts down the HTTP server gracefully when an error occurs or when an interrupt
 // signal is caught.
-func ListenAndServeContext(ctx context.Context, addr string, handler http.Handler) {
+func ListenAndServeContext(ctx context.Context, addr string, handler http.Handler) error {
 	server := &http.Server{Addr: addr, Handler: handler}
 
 	//waitForServerShutdown channel is used to block until server.Shutdown()
@@ -77,9 +77,10 @@ func ListenAndServeContext(ctx context.Context, addr string, handler http.Handle
 
 	err := server.ListenAndServe()
 	if err != http.ErrServerClosed {
-		logg.Error("HTTP server ListenAndServe: %s", err.Error())
 		shutdownServer <- 1
 	}
 
 	<-waitForServerShutdown
+
+	return err
 }
