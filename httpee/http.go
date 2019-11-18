@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/sapcc/go-bits/logg"
 )
@@ -39,6 +40,7 @@ func ContextWithSIGINT(ctx context.Context) context.Context {
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-signalChan
+		logg.Info("Interrupt received...")
 		signal.Reset(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		close(signalChan)
 		cancel()
@@ -47,40 +49,47 @@ func ContextWithSIGINT(ctx context.Context) context.Context {
 }
 
 // ListenAndServeContext is a wrapper around http.ListenAndServe() that additionally
-// shuts down the HTTP server gracefully when an error occurs or when an interrupt
-// signal is caught.
+// shuts down the HTTP server gracefully when the context expires, or if an error occurs.
 func ListenAndServeContext(ctx context.Context, addr string, handler http.Handler) error {
 	server := &http.Server{Addr: addr, Handler: handler}
 
-	//waitForServerShutdown channel is used to block until server.Shutdown()
-	//has returned. This is because when Shutdown is called, Serve, ListenAndServe,
-	//and ListenAndServeTLS immediately return ErrServerClosed.
-	//We block to make sure the program doesn't exit prematurely.
-	waitForServerShutdown := make(chan struct{})
+	// waitForServerShutdown channel serves two purposes:
+	// 1. It is used to block until server.Shutdown() returns to prevent
+	// program from exiting prematurely. This is because when Shutdown is
+	// called, Serve, ListenAndServe, and ListenAndServeTLS immediately return
+	// ErrServerClosed.
+	// 2. It is used to convey errors encountered during Shutdown from the
+	// goroutine to the caller function.
+	waitForServerShutdown := make(chan error)
 	shutdownServer := make(chan int, 1)
 	go func() {
-		ctx = ContextWithSIGINT(ctx)
 		select {
-		case <-shutdownServer:
-			//continue down below
 		case <-ctx.Done():
-			logg.Error("Interrupt received...")
+		case <-shutdownServer:
 		}
 
-		logg.Error("Shutting down HTTP server")
+		logg.Info("Shutting down HTTP server...")
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := server.Shutdown(ctx)
 		if err != nil {
-			logg.Error("HTTP server shutdown: %s", err.Error())
+			waitForServerShutdown <- err
 		}
 		close(waitForServerShutdown)
+		cancel()
 	}()
 
-	err := server.ListenAndServe()
-	if err != http.ErrServerClosed {
+	listenAndServeErr := server.ListenAndServe()
+	if listenAndServeErr != http.ErrServerClosed {
 		shutdownServer <- 1
 	}
 
-	<-waitForServerShutdown
+	shutdownErr := <-waitForServerShutdown
+	if listenAndServeErr == http.ErrServerClosed {
+		return shutdownErr
+	}
 
-	return err
+	if shutdownErr != nil {
+		logg.Error("Additional error encountered while shutting down server: %s", shutdownErr.Error())
+	}
+	return listenAndServeErr
 }
