@@ -7,6 +7,7 @@ require (
 	github.com/gofrs/uuid v3.1.0+incompatible
 	github.com/gophercloud/gophercloud v0.3.0
 	github.com/hashicorp/go-multierror v1.0.0
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/lib/pq v1.2.0
 	github.com/prometheus/client_golang v1.2.1
 	github.com/sapcc/hermes v0.0.0-20190722215605-d772f40f9fc6
