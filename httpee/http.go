@@ -37,11 +37,11 @@ import (
 func ContextWithSIGINT(ctx context.Context) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-signalChan
 		logg.Info("Interrupt received...")
-		signal.Reset(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		signal.Reset(os.Interrupt, syscall.SIGTERM)
 		close(signalChan)
 		cancel()
 	}()
