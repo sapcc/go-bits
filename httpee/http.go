@@ -28,8 +28,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/sapcc/go-bits/logg"
 )
 
 var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
@@ -42,7 +40,6 @@ func ContextWithSIGINT(ctx context.Context) context.Context {
 	signal.Notify(signalChan, shutdownSignals...)
 	go func() {
 		<-signalChan
-		logg.Info("Interrupt received...")
 		signal.Reset(shutdownSignals...)
 		close(signalChan)
 		cancel()
@@ -69,8 +66,6 @@ func ListenAndServeContext(ctx context.Context, addr string, handler http.Handle
 		case <-shutdownServer:
 		}
 
-		logg.Info("Shutting down HTTP server...")
-
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := server.Shutdown(ctx)
 		cancel()
@@ -85,10 +80,6 @@ func ListenAndServeContext(ctx context.Context, addr string, handler http.Handle
 	shutdownErr := <-waitForServerShutdown
 	if listenAndServeErr == http.ErrServerClosed {
 		return shutdownErr
-	}
-
-	if shutdownErr != nil {
-		logg.Error("Additional error encountered while shutting down server: %s", shutdownErr.Error())
 	}
 	return listenAndServeErr
 }
