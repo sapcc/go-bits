@@ -43,6 +43,10 @@ func (c inMemoryCacher) StoreTokenPayload(token string, payload []byte) {
 	c.Add(cacheKeyFor(token), payload)
 }
 
+func (c inMemoryCacher) RemoveTokenPayload(token string) {
+	c.Remove(cacheKeyFor(token))
+}
+
 func (c inMemoryCacher) LoadTokenPayload(token string) []byte {
 	val, ok := c.Get(cacheKeyFor(token))
 	if !ok {

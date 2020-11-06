@@ -54,6 +54,9 @@ type Cacher interface {
 	//from the cache. If there nothing cached for these credentials, or if the
 	//retrieval fails, nil shall be returned.
 	LoadTokenPayload(credentials string) []byte
+	//RemoveTokenPayload removes the payload for the given credentials
+	//from the cache.
+	RemoveTokenPayload(credentials string)
 }
 
 //TokenValidator combines an Identity v3 client to validate tokens (AuthN), and
