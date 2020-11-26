@@ -108,13 +108,9 @@ func (c *RabbitConnection) PublishEvent(event *cadf.Event) error {
 			Body:        b,
 		},
 	)
-	if err != nil {
-		if err == amqp.ErrClosed {
-			// channel/connection is not open
-			c.IsConnected = false
-		}
-		return err
+	if err == amqp.ErrClosed {
+		// channel/connection is not open
+		c.IsConnected = false
 	}
-
-	return nil
+	return err
 }
