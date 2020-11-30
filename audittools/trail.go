@@ -24,6 +24,7 @@ import (
 
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/hermes/pkg/cadf"
+	"github.com/streadway/amqp"
 )
 
 // AuditTrail holds an event sink for receiving audit events and closure functions
@@ -38,14 +39,15 @@ type AuditTrail struct {
 // a specific RabbitMQ Connection using the specified amqp URI and queue name.
 // The OnSuccessfulPublish and OnFailedPublish closures are executed as per
 // their respective case.
-func (t AuditTrail) Commit(rabbitmqURI, rabbitmqQueueName string) {
-	rc, err := NewRabbitConnection(rabbitmqURI, rabbitmqQueueName)
+func (t AuditTrail) Commit(rabbitmqQueueName string, rabbitmqURI amqp.URI) {
+	uriStr := rabbitmqURI.String()
+	rc, err := NewRabbitConnection(uriStr, rabbitmqQueueName)
 	if err != nil {
 		logg.Error(err.Error())
 	}
 
 	sendEvent := func(e *cadf.Event) bool {
-		rc.refreshIfClosedOrOld(rabbitmqURI, rabbitmqQueueName)
+		rc.refreshIfClosedOrOld(uriStr, rabbitmqQueueName)
 		err := rc.PublishEvent(e)
 		if err != nil {
 			t.OnFailedPublish()
@@ -71,7 +73,7 @@ func (t AuditTrail) Commit(rabbitmqURI, rabbitmqQueueName string) {
 				nextEvent := pendingEvents[0]
 				if successful = sendEvent(&nextEvent); !successful {
 					// One more try before giving up
-					rc.refresh(rabbitmqURI, rabbitmqQueueName)
+					rc.refresh(uriStr, rabbitmqQueueName)
 					time.Sleep(5 * time.Second)
 					successful = sendEvent(&nextEvent)
 				}
