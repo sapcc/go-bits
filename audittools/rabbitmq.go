@@ -32,9 +32,9 @@ import (
 // RabbitConnection represents a unique connection to some RabbitMQ server with
 // an open Channel and a declared Queue.
 type RabbitConnection struct {
-	Inner   *amqp.Connection
-	Channel *amqp.Channel
-	Queue   amqp.Queue
+	Inner     *amqp.Connection
+	Channel   *amqp.Channel
+	QueueName string
 
 	IsConnected     bool
 	LastConnectedAt time.Time
@@ -56,7 +56,7 @@ func NewRabbitConnection(uri, queueName string) (*RabbitConnection, error) {
 	}
 
 	//declare a queue to hold and deliver messages to consumers
-	q, err := ch.QueueDeclare(
+	_, err = ch.QueueDeclare(
 		queueName, // name of the queue
 		false,     // durable: queue should survive cluster reset (or broker restart)
 		false,     // autodelete when unused
@@ -71,7 +71,7 @@ func NewRabbitConnection(uri, queueName string) (*RabbitConnection, error) {
 	return &RabbitConnection{
 		Inner:           conn,
 		Channel:         ch,
-		Queue:           q,
+		QueueName:       queueName,
 		IsConnected:     true,
 		LastConnectedAt: time.Now(),
 	}, nil
@@ -99,10 +99,10 @@ func (c *RabbitConnection) PublishEvent(event *cadf.Event) error {
 	}
 
 	err = c.Channel.Publish(
-		"",           // exchange: publish to default
-		c.Queue.Name, // routing key: same as queue name
-		false,        // mandatory: don't publish if no queue is bound that matches the routing key
-		false,        // immediate: don't publish if no consumer on the matched queue is ready to accept the delivery
+		"",          // exchange: publish to default
+		c.QueueName, // routing key: same as queue name
+		false,       // mandatory: don't publish if no queue is bound that matches the routing key
+		false,       // immediate: don't publish if no consumer on the matched queue is ready to accept the delivery
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        b,
