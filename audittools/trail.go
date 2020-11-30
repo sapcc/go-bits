@@ -39,20 +39,13 @@ type AuditTrail struct {
 // The OnSuccessfulPublish and OnFailedPublish closures are executed as per
 // their respective case.
 func (t AuditTrail) Commit(rabbitmqURI, rabbitmqQueueName string) {
-	rc := &RabbitConnection{}
-	connect := func() {
-		if rc == nil || !rc.IsConnected {
-			var err error
-			rc, err = NewRabbitConnection(rabbitmqURI, rabbitmqQueueName)
-			if err != nil {
-				logg.Error(err.Error())
-			}
-		}
+	rc, err := NewRabbitConnection(rabbitmqURI, rabbitmqQueueName)
+	if err != nil {
+		logg.Error(err.Error())
 	}
+
 	sendEvent := func(e *cadf.Event) bool {
-		if rc == nil || !rc.IsConnected {
-			return false
-		}
+		rc.refreshIfClosedOrOld(rabbitmqURI, rabbitmqQueueName)
 		err := rc.PublishEvent(e)
 		if err != nil {
 			t.OnFailedPublish()
@@ -68,25 +61,19 @@ func (t AuditTrail) Commit(rabbitmqURI, rabbitmqQueueName string) {
 	for {
 		select {
 		case e := <-t.EventSink:
-			connect()
 			if successful := sendEvent(&e); !successful {
 				pendingEvents = append(pendingEvents, e)
 			}
 		case <-ticker:
 			for len(pendingEvents) > 0 {
-				connect()
-				successful := false //until proven otherwise
+				successful := false // until proven otherwise
+
 				nextEvent := pendingEvents[0]
 				if successful = sendEvent(&nextEvent); !successful {
-					//refresh connection, if old
-					if rc == nil || time.Since(rc.LastConnectedAt) > (5*time.Minute) {
-						if rc != nil && rc.IsConnected {
-							rc.Disconnect()
-						}
-						connect()
-					}
+					// One more try before giving up
+					rc.refresh(rabbitmqURI, rabbitmqQueueName)
 					time.Sleep(5 * time.Second)
-					successful = sendEvent(&nextEvent) //one more try before giving up
+					successful = sendEvent(&nextEvent)
 				}
 
 				if successful {
@@ -97,4 +84,23 @@ func (t AuditTrail) Commit(rabbitmqURI, rabbitmqQueueName string) {
 			}
 		}
 	}
+}
+
+func (rc *RabbitConnection) refresh(uri, queueName string) {
+	if rc != nil {
+		rc.Disconnect()
+	}
+
+	var err error
+	rc, err = NewRabbitConnection(uri, queueName)
+	if err != nil {
+		logg.Error(err.Error())
+	}
+}
+
+func (rc *RabbitConnection) refreshIfClosedOrOld(uri, queueName string) {
+	if !rc.IsNilOrClosed() && time.Since(rc.LastConnectedAt) < (5*time.Minute) {
+		return
+	}
+	rc.refresh(uri, queueName)
 }

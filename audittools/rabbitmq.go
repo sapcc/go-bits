@@ -36,7 +36,6 @@ type RabbitConnection struct {
 	Channel   *amqp.Channel
 	QueueName string
 
-	IsConnected     bool
 	LastConnectedAt time.Time
 }
 
@@ -72,7 +71,6 @@ func NewRabbitConnection(uri, queueName string) (*RabbitConnection, error) {
 		Inner:           conn,
 		Channel:         ch,
 		QueueName:       queueName,
-		IsConnected:     true,
 		LastConnectedAt: time.Now(),
 	}, nil
 }
@@ -81,24 +79,36 @@ func NewRabbitConnection(uri, queueName string) (*RabbitConnection, error) {
 func (c *RabbitConnection) Disconnect() {
 	c.Channel.Close()
 	c.Inner.Close()
-	c.IsConnected = false
+}
+
+// IsNilOrClosed is like (*amqp.Connection).IsClosed() but it also returns true
+// if RabbitConnection or the underlying amqp.Connection are nil.
+func (c *RabbitConnection) IsNilOrClosed() bool {
+	if c != nil {
+		if c.Inner != nil && !c.Inner.IsClosed() {
+			return false
+		}
+	}
+	return true
 }
 
 // PublishEvent publishes a cadf.Event to a specific RabbitMQ Connection.
 // A nil pointer for event parameter will return an error.
 func (c *RabbitConnection) PublishEvent(event *cadf.Event) error {
-	if !c.IsConnected {
-		return errors.New("audittools: could not publish event: not connected to a RabbitMQ server")
+	if c.IsNilOrClosed() {
+		return amqp.ErrClosed
 	}
+
 	if event == nil {
 		return errors.New("audittools: could not publish event: got a nil pointer for 'event' parameter")
 	}
+
 	b, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
-	err = c.Channel.Publish(
+	return c.Channel.Publish(
 		"",          // exchange: publish to default
 		c.QueueName, // routing key: same as queue name
 		false,       // mandatory: don't publish if no queue is bound that matches the routing key
@@ -108,9 +118,4 @@ func (c *RabbitConnection) PublishEvent(event *cadf.Event) error {
 			Body:        b,
 		},
 	)
-	if err == amqp.ErrClosed {
-		// channel/connection is not open
-		c.IsConnected = false
-	}
-	return err
 }
