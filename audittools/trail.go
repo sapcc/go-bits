@@ -47,7 +47,7 @@ func (t AuditTrail) Commit(rabbitmqQueueName string, rabbitmqURI amqp.URI) {
 	}
 
 	sendEvent := func(e *cadf.Event) bool {
-		rc.refreshIfClosedOrOld(uriStr, rabbitmqQueueName)
+		rc = refreshConnectionIfClosedOrOld(rc, uriStr, rabbitmqQueueName)
 		err := rc.PublishEvent(e)
 		if err != nil {
 			t.OnFailedPublish()
@@ -72,9 +72,11 @@ func (t AuditTrail) Commit(rabbitmqQueueName string, rabbitmqURI amqp.URI) {
 
 				nextEvent := pendingEvents[0]
 				if successful = sendEvent(&nextEvent); !successful {
-					// One more try before giving up
-					rc.refresh(uriStr, rabbitmqQueueName)
+					// One more try before giving up. We simply set rc to nil
+					// and sendEvent() will take care of refreshing the
+					// connection.
 					time.Sleep(5 * time.Second)
+					rc = nil
 					successful = sendEvent(&nextEvent)
 				}
 
@@ -88,23 +90,23 @@ func (t AuditTrail) Commit(rabbitmqQueueName string, rabbitmqURI amqp.URI) {
 	}
 }
 
-func (rc *RabbitConnection) refresh(uri, queueName string) {
-	if rc != nil {
+func refreshConnection(rc *RabbitConnection, uri, queueName string) *RabbitConnection {
+	if !rc.IsNilOrClosed() {
 		rc.Disconnect()
 	}
 
 	new, err := NewRabbitConnection(uri, queueName)
 	if err != nil {
 		logg.Error(err.Error())
-		return
+		return nil
 	}
 
-	*rc = *new
+	return new
 }
 
-func (rc *RabbitConnection) refreshIfClosedOrOld(uri, queueName string) {
+func refreshConnectionIfClosedOrOld(rc *RabbitConnection, uri, queueName string) *RabbitConnection {
 	if !rc.IsNilOrClosed() && time.Since(rc.LastConnectedAt) < (5*time.Minute) {
-		return
+		return rc
 	}
-	rc.refresh(uri, queueName)
+	return refreshConnection(rc, uri, queueName)
 }
