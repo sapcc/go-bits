@@ -84,12 +84,7 @@ func (c *RabbitConnection) Disconnect() {
 // IsNilOrClosed is like (*amqp.Connection).IsClosed() but it also returns true
 // if RabbitConnection or the underlying amqp.Connection are nil.
 func (c *RabbitConnection) IsNilOrClosed() bool {
-	if c != nil {
-		if c.Inner != nil && !c.Inner.IsClosed() {
-			return false
-		}
-	}
-	return true
+	return c == nil || c.Inner == nil || c.Inner.IsClosed()
 }
 
 // PublishEvent publishes a cadf.Event to a specific RabbitMQ Connection.
