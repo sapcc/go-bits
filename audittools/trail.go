@@ -93,11 +93,13 @@ func (rc *RabbitConnection) refresh(uri, queueName string) {
 		rc.Disconnect()
 	}
 
-	var err error
-	rc, err = NewRabbitConnection(uri, queueName)
+	new, err := NewRabbitConnection(uri, queueName)
 	if err != nil {
 		logg.Error(err.Error())
+		return
 	}
+
+	*rc = *new
 }
 
 func (rc *RabbitConnection) refreshIfClosedOrOld(uri, queueName string) {
