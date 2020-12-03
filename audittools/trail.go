@@ -90,8 +90,11 @@ func (t AuditTrail) Commit(rabbitmqQueueName string, rabbitmqURI amqp.URI) {
 	}
 }
 
-func refreshConnection(rc *RabbitConnection, uri, queueName string) *RabbitConnection {
+func refreshConnectionIfClosedOrOld(rc *RabbitConnection, uri, queueName string) *RabbitConnection {
 	if !rc.IsNilOrClosed() {
+		if time.Since(rc.LastConnectedAt) < 5*time.Minute {
+			return rc
+		}
 		rc.Disconnect()
 	}
 
@@ -102,11 +105,4 @@ func refreshConnection(rc *RabbitConnection, uri, queueName string) *RabbitConne
 	}
 
 	return new
-}
-
-func refreshConnectionIfClosedOrOld(rc *RabbitConnection, uri, queueName string) *RabbitConnection {
-	if !rc.IsNilOrClosed() && time.Since(rc.LastConnectedAt) < (5*time.Minute) {
-		return rc
-	}
-	return refreshConnection(rc, uri, queueName)
 }
