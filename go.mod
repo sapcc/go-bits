@@ -11,6 +11,5 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/prometheus/client_golang v1.2.1
 	github.com/sapcc/hermes v0.0.0-20190722215605-d772f40f9fc6
-	github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94
-	gopkg.in/yaml.v2 v2.3.0 // indirect
+	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
 )
