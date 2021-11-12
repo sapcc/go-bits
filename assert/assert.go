@@ -43,7 +43,7 @@ func DeepEqual(t *testing.T, variable string, actual, expected interface{}) bool
 	//	fmt.Sprintf("%+v\n", []string(nil)) == "[]\n"
 	//
 	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(fmt.Sprintf("%#v\n", expected), fmt.Sprintf("%#v\n", actual), false)
+	diffs := dmp.DiffMain(fmt.Sprintf("%#v\n", actual), fmt.Sprintf("%#v\n", expected), false)
 
 	t.Error("assert.DeepEqual failed for " + variable)
 	t.Logf(dmp.DiffPrettyText(diffs))
