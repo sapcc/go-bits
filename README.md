@@ -3,8 +3,9 @@
 [![GoDoc](https://godoc.org/github.com/sapcc/go-bits?status.svg)](https://godoc.org/github.com/sapcc/go-bits)
 
 Some tiny pieces of Go code, extracted from their original applications for
-reusability. Each subdirectory is its own individual package. Feel free to add
-to this.
+reusability. Feel free to add to this.
+
+## Packages
 
 * [assert](./assert) contains various assertions for unit tests.
 * [audittools](./audittools) contains helper functions for establishing a connection to a RabbitMQ server (with sane defaults) and publishing messages to it.
@@ -17,3 +18,9 @@ to this.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
 * [sre](./sre) contains a HTTP middleware that emits SRE-related Prometheus metrics.
 
+## Tools
+
+The `tools` subdirectory contains small Go programs.
+
+* [release-info](./tools/release-info) extracts release info for a specific version from a
+  changelog file that uses the [Keep a changelog](https://keepachangelog.com) format.
