@@ -71,5 +71,6 @@ func main() {
 		handleErr(fmt.Errorf("could not find release info for tag %q", os.Args[2]))
 	}
 
-	fmt.Printf("%s\n", strings.Join(releaseInfo, "\n"))
+	out := strings.TrimSpace(strings.Join(releaseInfo, "\n"))
+	fmt.Println(out)
 }
