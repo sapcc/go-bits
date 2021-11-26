@@ -8,5 +8,6 @@ We use it in our GitHub action for updating a GitHub release's description, when
 ## Usage
 
 ```
+$ go install github.com/sapcc/go-bits/tools/release-info@latest
 $ release-info path-to-changelog-file vX.Y.Z
 ```
