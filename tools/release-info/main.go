@@ -31,7 +31,7 @@ func handleErr(err error) {
 }
 
 // tagHeadingRx matches headings with format: ## [X.Y.Z] - YEAR-MONTH-DAY
-var tagHeadingRx = regexp.MustCompile(`^## \[(\d+\.\d+\.\d+)\] - \d{4}-\d{2}-\d{2}\s*$`)
+var tagHeadingRx = regexp.MustCompile(`^## \[?(\d+\.\d+\.\d+)\]? - \d{4}-\d{2}-\d{2}\s*$`)
 
 // referenceLinkRx matches reference links at the end of changelog.
 var referenceLinkRx = regexp.MustCompile(`^\[(unreleased|\d+\.\d+\.\d+)\]: http.*$`)
