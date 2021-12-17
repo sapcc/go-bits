@@ -43,6 +43,8 @@ func (b ByteData) GetRequestBody() (io.Reader, error) {
 }
 
 func logDiff(t *testing.T, expected, actual string) {
+	t.Helper()
+
 	prettyDiff, _ := strconv.ParseBool(os.Getenv("GOBITS_PRETTY_DIFF"))
 	if prettyDiff {
 		dmp := diffmatchpatch.New()
