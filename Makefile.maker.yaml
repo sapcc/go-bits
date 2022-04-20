@@ -1,0 +1,15 @@
+# Configuration file for <https://github.com/sapcc/go-makefile-maker>
+
+githubWorkflow:
+  global:
+    assignees:
+      - SuperSandro2000
+    ignorePaths: [ "**.md" ] # all Markdown files
+  securityChecks:
+    enabled: true
+  spellCheck:
+    enabled: true
+    ignorePaths: [] # override global setting so that nothing is ignored
+
+renovate:
+  enabled: true
