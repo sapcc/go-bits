@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/lib/pq v1.10.4
 	github.com/prometheus/client_golang v1.12.1
-	github.com/rabbitmq/amqp091-go v1.3.0
+	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/sapcc/hermes v0.0.0-20220216215340-12b4f661924a
 	github.com/sergi/go-diff v1.2.0
 	gopkg.in/yaml.v2 v2.4.0
