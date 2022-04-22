@@ -12,7 +12,12 @@ ifneq (,$(wildcard /etc/os-release)) # check file existence
 	endif
 endif
 
-default: check
+default: FORCE
+	@echo 'There is nothing to build, use `make check` for running the tests'
+
+GO_BUILDFLAGS =
+GO_LDFLAGS =
+GO_TESTENV =
 
 # which packages to test with "go test"
 GO_TESTPKGS := $(shell go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./...)
@@ -22,7 +27,7 @@ GO_COVERPKGS := $(shell go list ./...)
 space := $(null) $(null)
 comma := ,
 
-check: FORCE build-all static-check build/cover.html
+check: FORCE static-check build/cover.html
 	@printf "\e[1;32m>> All checks successful.\e[0m\n"
 
 prepare-static-check: FORCE
