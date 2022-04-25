@@ -74,12 +74,15 @@ type EventParameters struct {
 	// It is recommended to use a constant from: https://golang.org/pkg/net/http/#pkg-constants
 	ReasonCode int
 	Action     cadf.Action
-	Observer   struct {
-		TypeURI string
-		Name    string
-		ID      string
-	}
-	Target TargetRenderer
+	Observer   EventObserver
+	Target     TargetRenderer
+}
+
+// EventObserver contains the necessary parameters for the Event.Observer field.
+type EventObserver struct {
+	TypeURI string
+	Name    string
+	ID      string
 }
 
 // NewEvent uses EventParameters to generate an audit event.
