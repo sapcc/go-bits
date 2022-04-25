@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/httpext"
@@ -140,7 +140,7 @@ func NewEvent(p EventParameters) cadf.Event {
 // GenerateUUID generates an UUID based on random numbers (RFC 4122).
 // Failure will result in program termination.
 func GenerateUUID() string {
-	u, err := uuid.NewV4()
+	u, err := uuid.NewRandom()
 	if err != nil {
 		logg.Fatal(err.Error())
 	}
