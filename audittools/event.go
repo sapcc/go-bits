@@ -28,7 +28,6 @@ import (
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/httpext"
-	"github.com/sapcc/go-bits/logg"
 )
 
 // TargetRenderer is the interface that different event types "must" implement
@@ -84,9 +83,13 @@ type EventParameters struct {
 }
 
 // NewEvent uses EventParameters to generate an audit event.
-// Warning: this function uses GenerateUUID() to generate the Event.ID, if that fails
-// then the concerning error will be logged and it will result in program termination.
-func NewEvent(p EventParameters) cadf.Event {
+func NewEvent(p EventParameters) (cadf.Event, error) {
+	// Generate UUID upfront so that we can exit in case of error.
+	eventID, err := GenerateUUID()
+	if err != nil {
+		return cadf.Event{}, err
+	}
+
 	outcome := cadf.FailureOutcome
 	if p.ReasonCode >= 200 && p.ReasonCode < 300 {
 		outcome = cadf.SuccessOutcome
@@ -117,7 +120,7 @@ func NewEvent(p EventParameters) cadf.Event {
 
 	return cadf.Event{
 		TypeURI:   "http://schemas.dmtf.org/cloud/audit/1.0/event",
-		ID:        GenerateUUID(),
+		ID:        eventID,
 		EventTime: p.Time.Format("2006-01-02T15:04:05.999999+00:00"),
 		EventType: "activity",
 		Action:    p.Action,
@@ -134,15 +137,14 @@ func NewEvent(p EventParameters) cadf.Event {
 			ID:      p.Observer.ID,
 		},
 		RequestPath: p.Request.URL.String(),
-	}
+	}, nil
 }
 
 // GenerateUUID generates an UUID based on random numbers (RFC 4122).
-// Failure will result in program termination.
-func GenerateUUID() string {
+func GenerateUUID() (string, error) {
 	u, err := uuid.NewRandom()
 	if err != nil {
-		logg.Fatal(err.Error())
+		return "", err
 	}
-	return u.String()
+	return u.String(), nil
 }
