@@ -20,6 +20,7 @@
 package audittools
 
 import (
+	"database/sql"
 	"net/url"
 	"time"
 
@@ -27,6 +28,14 @@ import (
 
 	"github.com/sapcc/go-bits/logg"
 )
+
+type DBInterface interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
+func EnqueueAuditEvent(dbi DBInterface, event cadf.Event) error {
+	return nil
+}
 
 // AuditTrail holds an event sink for receiving audit events and closure functions
 // that are executed in case of successful and failed publishing.
