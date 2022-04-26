@@ -124,7 +124,7 @@ func NewEvent(p EventParameters) (cadf.Event, error) {
 	return cadf.Event{
 		TypeURI:   "http://schemas.dmtf.org/cloud/audit/1.0/event",
 		ID:        eventID,
-		EventTime: p.Time.Format("2006-01-02T15:04:05.999999+00:00"),
+		EventTime: p.Time.Format(time.RFC3339),
 		EventType: "activity",
 		Action:    p.Action,
 		Outcome:   outcome,
