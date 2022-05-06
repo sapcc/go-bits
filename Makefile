@@ -13,7 +13,7 @@ ifneq (,$(wildcard /etc/os-release)) # check file existence
 endif
 
 default: FORCE
-	@echo 'There is nothing to build, use `make check` for running the tests'
+	@echo 'There is nothing to build, use `make check` for running the test suite or `make help` for a list of available targets.'
 
 GO_BUILDFLAGS =
 GO_LDFLAGS =
