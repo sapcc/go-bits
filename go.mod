@@ -8,7 +8,7 @@ require (
 	github.com/gophercloud/gophercloud v0.24.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/lib/pq v1.10.5
+	github.com/lib/pq v1.10.6
 	github.com/prometheus/client_golang v1.12.2
 	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/sapcc/go-api-declarations v1.1.0
