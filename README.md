@@ -14,7 +14,6 @@ reusability. Feel free to add to this.
 * [httpee](./httpee) and [httpext](./httpext) add some convenience functions to [net/http](https://golang.org/pkg/http/). (These need to be two separate packages because one imports logg and one is imported by logg.)
 * [logg](./logg) adds some convenience functions to [log](https://golang.org/pkg/log/).
 * [respondwith](./respondwith) contains some helper functions for generating responses in HTTP handlers.
-* [retry](./retry) contains helper methods for creating retry loops using different strategies.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
 * [sre](./sre) contains a HTTP middleware that emits SRE-related Prometheus metrics.
 
