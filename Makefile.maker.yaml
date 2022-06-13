@@ -3,6 +3,7 @@
 githubWorkflow:
   global:
     assignees:
+      - majewsky
       - SuperSandro2000
     ignorePaths: [ "**.md" ] # all Markdown files
   securityChecks:
