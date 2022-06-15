@@ -19,6 +19,12 @@ GO_BUILDFLAGS =
 GO_LDFLAGS =
 GO_TESTENV =
 
+# These definitions are overridable, e.g. to provide fixed version/commit values when
+# no .git directory is present or to provide a fixed build date for reproducability.
+BININFO_VERSION     ?= $(shell git describe --tags --always --abbrev=7)
+BININFO_COMMIT_HASH ?= $(shell git rev-parse --verify HEAD)
+BININFO_BUILD_DATE  ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
 # which packages to test with "go test"
 GO_TESTPKGS := $(shell go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./...)
 # which packages to measure coverage for
@@ -39,7 +45,7 @@ static-check: FORCE prepare-static-check
 
 build/cover.out: FORCE | build
 	@printf "\e[1;36m>> go test\e[0m\n"
-	@env $(GO_TESTENV) go test $(GO_BUILDFLAGS) -ldflags '-s -w $(GO_LDFLAGS)' -shuffle=on -p 1 -coverprofile=$@ -covermode=count -coverpkg=$(subst $(space),$(comma),$(GO_COVERPKGS)) $(GO_TESTPKGS)
+	@env $(GO_TESTENV) go test $(GO_BUILDFLAGS) -ldflags '-s -w -X github.com/sapcc/go-api-declarations/bininfo.binName=go-bits -X github.com/sapcc/go-api-declarations/bininfo.version=$(BININFO_VERSION) -X github.com/sapcc/go-api-declarations/bininfo.commit=$(BININFO_COMMIT_HASH) -X github.com/sapcc/go-api-declarations/bininfo.buildDate=$(BININFO_BUILD_DATE) $(GO_LDFLAGS)' -shuffle=on -p 1 -coverprofile=$@ -covermode=count -coverpkg=$(subst $(space),$(comma),$(GO_COVERPKGS)) $(GO_TESTPKGS)
 
 build/cover.html: build/cover.out
 	@printf "\e[1;36m>> go tool cover > build/cover.html\e[0m\n"
