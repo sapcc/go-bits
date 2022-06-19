@@ -42,7 +42,8 @@ type API interface {
 //Failing the application-provided check will cause a 500 response with the
 //resulting error message.
 type HealthCheckAPI struct {
-	Check func() error //optional
+	SkipRequestLog bool
+	Check          func() error //optional
 }
 
 //AddTo implements the API interface.
@@ -52,6 +53,9 @@ func (h HealthCheckAPI) AddTo(r *mux.Router) {
 
 func (h HealthCheckAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
 	IdentifyEndpoint(r, "/healthcheck")
+	if h.SkipRequestLog {
+		SkipRequestLog(r)
+	}
 
 	if h.Check != nil {
 		err := h.Check()

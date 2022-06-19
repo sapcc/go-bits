@@ -77,7 +77,7 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//the timestamp is at the front to ensure consistency with the rest of the
 	//log)
 	if !m.skipAllLogs {
-		if !skipLog {
+		if !skipLog || writer.statusCode >= 500 {
 			logg.Other(
 				"REQUEST", `%s - - "%s %s %s" %03d %d "%s" "%s" %.3fs`,
 				httpext.GetRequesterIPFor(r),
@@ -90,7 +90,7 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if writer.errorMessageBuf.Len() > 0 {
 			logg.Error(`during "%s %s": %s`,
-				r.Method, r.URL.String(), writer.errorMessageBuf.String(),
+				r.Method, r.URL.String(), strings.TrimSpace(writer.errorMessageBuf.String()),
 			)
 		}
 	}

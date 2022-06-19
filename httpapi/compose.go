@@ -50,7 +50,7 @@ func Compose(apis ...API) http.Handler {
 const OOB_KEY = "gobits-httpapi-oob"
 
 //An out-of-band message that can be sent from the middleware to the request
-//through one of the top-level packages in this package.
+//through one of the functions below.
 type oobMessage struct {
 	SkipLog    bool
 	EndpointID string
