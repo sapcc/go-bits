@@ -16,7 +16,7 @@
 *
 ******************************************************************************/
 
-package httpapi_test
+package httpapi
 
 import (
 	"bytes"
@@ -25,24 +25,31 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sapcc/go-bits/assert"
-	"github.com/sapcc/go-bits/httpapi"
 	"github.com/sapcc/go-bits/logg"
+	"github.com/sapcc/go-bits/respondwith"
 )
 
 func TestHealthCheckAPI(t *testing.T) {
 	//setup the healthcheck API with a choice of error value
 	var currentError error
-	h := httpapi.Compose(
-		httpapi.HealthCheckAPI{
+	h := Compose(
+		HealthCheckAPI{
 			Check: func() error {
 				return currentError
 			},
 		},
-		httpapi.WithoutLogging(),
+		WithoutLogging(),
 	)
 
 	//test succeeding healthcheck
@@ -84,7 +91,7 @@ func TestLogging(t *testing.T) {
 
 	////////////////////////////////////////////////////////////
 	//scenario 1: everything is logged
-	h := httpapi.Compose(httpapi.HealthCheckAPI{})
+	h := Compose(HealthCheckAPI{})
 
 	//test a minimal request that logs
 	assert.HTTPRequest{
@@ -108,8 +115,8 @@ func TestLogging(t *testing.T) {
 	////////////////////////////////////////////////////////////
 	//scenario 2: non-error logs are suppressed
 	var currentError error
-	h = httpapi.Compose(
-		httpapi.HealthCheckAPI{
+	h = Compose(
+		HealthCheckAPI{
 			SkipRequestLog: true,
 			Check: func() error {
 				return currentError
@@ -141,13 +148,13 @@ func TestLogging(t *testing.T) {
 
 	////////////////////////////////////////////////////////////
 	//scenario 3: all logs are suppressed
-	h = httpapi.Compose(
-		httpapi.HealthCheckAPI{
+	h = Compose(
+		HealthCheckAPI{
 			Check: func() error {
 				return errors.New("log suppression too strong")
 			},
 		},
-		httpapi.WithoutLogging(),
+		WithoutLogging(),
 	)
 
 	assert.HTTPRequest{
@@ -157,4 +164,79 @@ func TestLogging(t *testing.T) {
 		ExpectBody:   assert.StringData("log suppression too strong\n"),
 	}.Check(t, h)
 	expectLog("")
+}
+
+func TestMetrics(t *testing.T) {
+	registry := prometheus.NewPedanticRegistry()
+	testSetRegisterer(registry)
+
+	h := Compose(metricsTestingAPI{})
+
+	//perform some calls to populate metrics
+	assert.HTTPRequest{
+		Method:       "POST",
+		Path:         "/sleep/0.01/return/50",
+		ExpectStatus: http.StatusOK,
+		ExpectBody:   assert.StringData(strings.Repeat(".", 50)),
+	}.Check(t, h)
+	assert.HTTPRequest{
+		Method:       "POST",
+		Path:         "/sleep/0.15/return/5000",
+		Body:         assert.StringData(strings.Repeat(".", 5000)),
+		ExpectStatus: http.StatusOK,
+		ExpectBody:   assert.StringData(strings.Repeat(".", 5000)),
+	}.Check(t, h)
+
+	//collect metrics report
+	assert.HTTPRequest{
+		Method:       "GET",
+		Path:         "/metrics",
+		ExpectStatus: http.StatusOK,
+		ExpectBody:   assert.FixtureFile("fixtures/metrics.prom"),
+	}.Check(t, promhttpNormalizer(promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
+}
+
+type metricsTestingAPI struct{}
+
+func (m metricsTestingAPI) AddTo(r *mux.Router) {
+	r.Methods("POST").Path("/sleep/{secs}/return/{count}").HandlerFunc(m.handleRequest)
+}
+
+func (m metricsTestingAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	secs, err := strconv.ParseFloat(vars["secs"], 64)
+	if respondwith.ErrorText(w, err) {
+		return
+	}
+	//NOTE: `time.Duration(secs)` does not work because all values < 1 would all be truncated to 0.
+	time.Sleep(time.Duration(secs * float64(time.Second)))
+
+	count, err := strconv.Atoi(vars["count"])
+	if respondwith.ErrorText(w, err) {
+		return
+	}
+	w.Write(bytes.Repeat([]byte("."), count)) //nolint:errcheck
+}
+
+func promhttpNormalizer(inner http.Handler) http.Handler {
+	//This middleware first collects a complete `GET /metrics` response, then
+	//does one very specific rewrite for test reproducability.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//slurp the response from `GET /metrics`
+		resp := httptest.NewRecorder()
+		inner.ServeHTTP(resp, r)
+
+		//remove the undeterministic values for the `..._seconds_sum` metrics
+		buf := resp.Body.Bytes()
+		rx := regexp.MustCompile(`(seconds_sum{[^{}]*}) \d*\.\d*(?m:$)`)
+		buf = rx.ReplaceAll(buf, []byte("$1 VARYING"))
+
+		//replay the edited response into the actual ResponseWriter
+		for k, v := range resp.HeaderMap {
+			w.Header()[k] = v
+		}
+		w.WriteHeader(resp.Code)
+		w.Write(buf) //nolint:errcheck
+	})
 }

@@ -39,7 +39,18 @@ var (
 	metricResponseDuration  *prometheus.HistogramVec
 	metricRequestBodySize   *prometheus.HistogramVec
 	metricResponseBodySize  *prometheus.HistogramVec
+
+	//interface for tests only
+	metricsRegisterer = prometheus.DefaultRegisterer
 )
+
+func testSetRegisterer(r prometheus.Registerer) {
+	metricsRegisterer = r
+
+	//We need to reset this flag at the start of each test, in case multiple
+	//tests want to register metrics to their own registries respectively.
+	metricsConfigured = false
+}
 
 //ConfigureMetrics sets up the metrics emitted by this package. This function
 //must be called exactly once before the first call to Compose(), but only if
@@ -79,10 +90,10 @@ func ConfigureMetrics(cfg MetricsConfig) {
 		Buckets: cfg.ResponseBodySizeBuckets,
 	}, labelNames)
 
-	prometheus.MustRegister(metricFirstByteDuration)
-	prometheus.MustRegister(metricResponseDuration)
-	prometheus.MustRegister(metricRequestBodySize)
-	prometheus.MustRegister(metricResponseBodySize)
+	metricsRegisterer.MustRegister(metricFirstByteDuration)
+	metricsRegisterer.MustRegister(metricResponseDuration)
+	metricsRegisterer.MustRegister(metricRequestBodySize)
+	metricsRegisterer.MustRegister(metricResponseBodySize)
 }
 
 var (
