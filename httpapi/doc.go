@@ -34,4 +34,16 @@
 //
 //To suppress logging of specific requests, call SkipRequestLog() somewhere
 //inside the handler.
+//
+//Metrics
+//
+//Each HTTP request counts towards the following histogram metrics:
+//"httpmux_first_byte_seconds", "httpmux_response_duration_seconds",
+//"httpmux_request_size_bytes" and "httpmux_response_size_bytes".
+//
+//The buckets for these histogram metrics, as well as the application name
+//reported in the labels on these metrics, can be configured if
+//ConfigureMetrics() is called before Compose(). Otherwise, a default choice of
+//buckets will be applied and the application name will be read from the
+//Component() method of package github.com/sapcc/go-api-declarations/bininfo.
 package httpapi

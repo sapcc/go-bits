@@ -22,8 +22,11 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-bits/httpext"
 	"github.com/sapcc/go-bits/logg"
 )
@@ -37,6 +40,7 @@ type middleware struct {
 //ServeHTTP implements the http.Handler interface.
 func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	skipLog := false
+	endpointID := "unknown"
 
 	//provide a back-channel for our custom out-of-band messages to the request handler
 	//(this is used by SkipRequestLog etc.)
@@ -44,16 +48,30 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if msg.SkipLog {
 			skipLog = true
 		}
+		if msg.EndpointID != "" {
+			endpointID = msg.EndpointID
+		}
 	})
-	rr := r.WithContext(ctx)
+	r = r.WithContext(ctx)
 
 	//setup interception of response metadata
+	startedAt := time.Now()
 	writer := responseWriter{original: w}
 
 	//forward request to actual handler
-	start := time.Now()
-	m.inner.ServeHTTP(&writer, rr)
-	duration := time.Since(start)
+	m.inner.ServeHTTP(&writer, r)
+	duration := time.Since(startedAt)
+
+	//emit metrics
+	labels := getLabels(writer.statusCode, endpointID, r)
+	metricResponseDuration.With(labels).Observe(time.Since(startedAt).Seconds())
+	if writer.firstByteSentAt != nil {
+		metricFirstByteDuration.With(labels).Observe(writer.firstByteSentAt.Sub(startedAt).Seconds())
+	}
+	metricResponseBodySize.With(labels).Observe(float64(writer.bytesWritten))
+	if r.ContentLength != -1 {
+		metricRequestBodySize.With(labels).Observe(float64(r.ContentLength))
+	}
 
 	//write log line (the format is similar to nginx's "combined" log format, but
 	//the timestamp is at the front to ensure consistency with the rest of the
@@ -78,6 +96,22 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getLabels(statusCode int, endpointID string, r *http.Request) prometheus.Labels {
+	l := prometheus.Labels{
+		"method":   strings.ToUpper(r.Method),
+		"endpoint": endpointID,
+		"app":      metricsAppName,
+	}
+
+	if statusCode == 0 {
+		l["status"] = "200"
+	} else {
+		l["status"] = strconv.Itoa(statusCode)
+	}
+
+	return l
+}
+
 func stringOrDefault(defaultValue, value string) string {
 	if value == "" {
 		return defaultValue
@@ -93,6 +127,7 @@ type responseWriter struct {
 	headersWritten  bool
 	statusCode      int
 	errorMessageBuf bytes.Buffer
+	firstByteSentAt *time.Time
 }
 
 //Header implements the http.ResponseWriter interface.
@@ -104,6 +139,10 @@ func (w *responseWriter) Header() http.Header {
 func (w *responseWriter) Write(buf []byte) (int, error) {
 	if !w.headersWritten {
 		w.WriteHeader(http.StatusOK)
+	}
+	if w.firstByteSentAt == nil {
+		now := time.Now()
+		w.firstByteSentAt = &now
 	}
 	if w.statusCode >= 500 {
 		//record server errors for the log

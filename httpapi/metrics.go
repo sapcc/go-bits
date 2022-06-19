@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*  Copyright 2019 SAP SE
+*  Copyright 2019-2022 SAP SE
 *
 *  Licensed under the Apache License, Version 2.0 (the "License");
 *  you may not use this file except in compliance with the License.
@@ -16,26 +16,16 @@
 *
 ******************************************************************************/
 
-//Package sre contains an instrumentation middleware similar to
-//github.com/prometheus/client_golang/prometheus/promhttp, but with an
-//additional "endpoint" label identifying the type of request. The final
-//request handler must identify itself to this middleware by calling
-//IdentifyEndpoint().
-package sre
+package httpapi
 
 import (
-	"context"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sapcc/go-api-declarations/bininfo"
 )
 
-//Config contains the configuration options for this package.
-type Config struct {
-	AppName                  string
+//MetricsConfig contains configuration options for ConfigureMetrics().
+type MetricsConfig struct {
+	AppName                  string //leave empty to use bininfo.Component()
 	FirstByteDurationBuckets []float64
 	ResponseDurationBuckets  []float64
 	RequestBodySizeBuckets   []float64
@@ -43,16 +33,29 @@ type Config struct {
 }
 
 var (
-	appName                 string
+	metricsConfigured       bool
+	metricsAppName          string
 	metricFirstByteDuration *prometheus.HistogramVec
 	metricResponseDuration  *prometheus.HistogramVec
 	metricRequestBodySize   *prometheus.HistogramVec
 	metricResponseBodySize  *prometheus.HistogramVec
 )
 
-//Init sets up the metrics used by type Middleware. It must be called exactly once.
-func Init(cfg Config) {
-	appName = cfg.AppName
+//ConfigureMetrics sets up the metrics emitted by this package. This function
+//must be called exactly once before the first call to Compose(), but only if
+//the default configuration needs to be overridden.
+func ConfigureMetrics(cfg MetricsConfig) {
+	if metricsConfigured {
+		panic("ConfigureMetrics called multiple times or after Compose")
+	}
+
+	metricsConfigured = true
+	if cfg.AppName == "" {
+		metricsAppName = bininfo.Component()
+	} else {
+		metricsAppName = cfg.AppName
+	}
+
 	labelNames := []string{"app", "method", "status", "endpoint"}
 
 	metricFirstByteDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -82,71 +85,24 @@ func Init(cfg Config) {
 	prometheus.MustRegister(metricResponseBodySize)
 }
 
-//Instrument applies this middleware to the given http.Handler.
-func Instrument(next http.Handler) http.Handler {
-	return handler{next}
-}
+var (
+	//taken from <https://github.com/sapcc/helm-charts/blob/20f70f7071fcc03c3cee3f053ddc7e3989a05ae8/openstack/swift/etc/statsd-exporter.yaml#L23>
+	defaultDurationBuckets = []float64{0.025, 0.1, 0.25, 1, 2.5}
 
-type contextKey int
-
-const (
-	endpointIdentifyKey contextKey = iota
+	//1024 and 8192 indicate that the request/response probably fits inside a single
+	//ethernet frame or jumboframe, respectively
+	defaultBodySizeBuckets = []float64{1024, 8192, 1000000, 10000000}
 )
 
-type endpointIdentifyFunc func(string)
-
-//IdentifyEndpoint is called by the final handler of `r` to identify itself to
-//this middleware.
-func IdentifyEndpoint(r *http.Request, endpoint string) {
-	fn, ok := r.Context().Value(endpointIdentifyKey).(endpointIdentifyFunc)
-	if ok {
-		fn(endpoint)
-	} else {
-		panic("sre.IdentifyEndpoint() called from non-instrumented request handler!")
+func autoConfigureMetricsIfNecessary() {
+	if metricsConfigured {
+		return
 	}
-}
-
-type handler struct {
-	Next http.Handler
-}
-
-func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	endpoint := "unknown"
-	ctx := context.WithValue(r.Context(), endpointIdentifyKey,
-		endpointIdentifyFunc(func(val string) {
-			endpoint = val
-		}),
-	)
-	rr := r.WithContext(ctx)
-
-	startedAt := time.Now()
-	d := newDelegator(w, func(status int) {
-		labels := getLabels(status, endpoint, rr)
-		metricFirstByteDuration.With(labels).Observe(time.Since(startedAt).Seconds())
+	ConfigureMetrics(MetricsConfig{
+		AppName:                  "", //autofill from bininfo.Component()
+		FirstByteDurationBuckets: defaultDurationBuckets,
+		ResponseDurationBuckets:  defaultDurationBuckets,
+		RequestBodySizeBuckets:   defaultBodySizeBuckets,
+		ResponseBodySizeBuckets:  defaultBodySizeBuckets,
 	})
-
-	h.Next.ServeHTTP(d, rr)
-
-	labels := getLabels(d.Status(), endpoint, rr)
-	metricResponseDuration.With(labels).Observe(time.Since(startedAt).Seconds())
-	if r.ContentLength != -1 {
-		metricRequestBodySize.With(labels).Observe(float64(r.ContentLength))
-	}
-	metricResponseBodySize.With(labels).Observe(float64(d.Written()))
-}
-
-func getLabels(status int, endpoint string, r *http.Request) prometheus.Labels {
-	l := prometheus.Labels{
-		"method":   strings.ToUpper(r.Method),
-		"endpoint": endpoint,
-		"app":      appName,
-	}
-
-	if status == 0 {
-		l["status"] = "200"
-	} else {
-		l["status"] = strconv.Itoa(status)
-	}
-
-	return l
 }
