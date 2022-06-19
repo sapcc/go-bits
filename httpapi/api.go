@@ -19,6 +19,8 @@
 package httpapi
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -32,6 +34,34 @@ import (
 //Compose(), instead of just adding endpoints to it.
 type API interface {
 	AddTo(r *mux.Router)
+}
+
+//HealthCheckAPI is an API with one endpoint, "GET /healthcheck", that
+//usually just prints "ok". If the application knows how to perform a more
+//elaborate healthcheck, it can provide a check function in the Check field.
+//Failing the application-provided check will cause a 500 response with the
+//resulting error message.
+type HealthCheckAPI struct {
+	Check func() error //optional
+}
+
+//AddTo implements the API interface.
+func (h HealthCheckAPI) AddTo(r *mux.Router) {
+	r.Methods("GET", "HEAD").Path("/healthcheck").HandlerFunc(h.handleRequest)
+}
+
+func (h HealthCheckAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
+	IdentifyEndpoint(r, "/healthcheck")
+
+	if h.Check != nil {
+		err := h.Check()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	http.Error(w, "ok", http.StatusOK)
 }
 
 //A value that can appear as an argument of Compose() without actually being an
