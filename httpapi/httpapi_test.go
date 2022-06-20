@@ -224,19 +224,23 @@ func promhttpNormalizer(inner http.Handler) http.Handler {
 	//does one very specific rewrite for test reproducability.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//slurp the response from `GET /metrics`
-		resp := httptest.NewRecorder()
-		inner.ServeHTTP(resp, r)
+		rec := httptest.NewRecorder()
+		inner.ServeHTTP(rec, r)
+		resp := rec.Result()
 
 		//remove the undeterministic values for the `..._seconds_sum` metrics
-		buf := resp.Body.Bytes()
+		buf, err := io.ReadAll(resp.Body)
+		if respondwith.ErrorText(w, err) {
+			return
+		}
 		rx := regexp.MustCompile(`(seconds_sum{[^{}]*}) \d*\.\d*(?m:$)`)
 		buf = rx.ReplaceAll(buf, []byte("$1 VARYING"))
 
 		//replay the edited response into the actual ResponseWriter
-		for k, v := range resp.HeaderMap {
+		for k, v := range resp.Header {
 			w.Header()[k] = v
 		}
-		w.WriteHeader(resp.Code)
+		w.WriteHeader(resp.StatusCode)
 		w.Write(buf) //nolint:errcheck
 	})
 }

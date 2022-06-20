@@ -47,7 +47,9 @@ func Compose(apis ...API) http.Handler {
 	return h
 }
 
-const OOB_KEY = "gobits-httpapi-oob"
+type oobKey string
+
+const OOB_KEY oobKey = "gobits-httpapi-oob"
 
 //An out-of-band message that can be sent from the middleware to the request
 //through one of the functions below.
