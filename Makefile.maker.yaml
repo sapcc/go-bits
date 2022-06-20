@@ -6,6 +6,11 @@ githubWorkflow:
       - majewsky
       - SuperSandro2000
     ignorePaths: [ "**.md" ] # all Markdown files
+  ci:
+    enabled: true
+    coveralls: true
+  license:
+    enabled: true
   securityChecks:
     enabled: true
   spellCheck:
