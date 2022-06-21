@@ -11,6 +11,7 @@ githubWorkflow:
     coveralls: true
   license:
     enabled: true
+    ignorePatterns: [ "easypg/migrate/**" ]
   securityChecks:
     enabled: true
   spellCheck:
