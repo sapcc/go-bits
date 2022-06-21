@@ -22,7 +22,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 )
 
 //API is the interface that applications can use to plug their own API
@@ -91,13 +90,15 @@ func WithoutLogging() API {
 	}
 }
 
-//WithCORS can be given as an argument to Compose() to add the
-//github.com/rs/cors middleware to the entire http.Handler returned by
-//Compose().
-func WithCORS(opts cors.Options) API {
+//WithGlobalMiddleware can be given as an argument to Compose() to add a
+//middleware to the entire http.Handler returned by Compose(). This is a
+//similar effect to using mux.Router.Use() inside an API's AddTo() method, but
+//explicitly declaring a global middleware like this is clearer than hiding it
+//in one specific API implementation.
+func WithGlobalMiddleware(globalMiddleware func(http.Handler) http.Handler) API {
 	return pseudoAPI{
 		configure: func(m *middleware) {
-			m.inner = cors.New(opts).Handler(m.inner)
+			m.inner = globalMiddleware(m.inner)
 		},
 	}
 }
