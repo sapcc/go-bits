@@ -14,6 +14,7 @@ reusability. Feel free to add to this.
 * [httpapi](./httpapi) contains opinionated base machinery for assembling and exposing an API consisting of HTTP endpoints.
 * [httpext](./httpext) adds some convenience functions to [net/http](https://golang.org/pkg/http/).
 * [logg](./logg) adds some convenience functions to [log](https://golang.org/pkg/log/).
+* [osext](./osext) contains extensions to the standard library package "os", mostly relating to parsing of environment variables.
 * [respondwith](./respondwith) contains some helper functions for generating responses in HTTP handlers.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
 * [sre](./sre) contains a HTTP middleware that emits SRE-related Prometheus metrics.
