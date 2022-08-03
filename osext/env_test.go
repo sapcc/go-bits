@@ -16,8 +16,8 @@
 *
 ******************************************************************************/
 
-//This needs to be in a separate package to allow importing go-bits/assert
-//without causing an import loop.
+// This needs to be in a separate package to allow importing go-bits/assert
+// without causing an import loop.
 package osext_test
 
 import (
