@@ -40,10 +40,10 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, (*tls.Config)(nil)) //check that false -> false is a true no-op
 
 	wrap.SetInsecureSkipVerify(true)
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: true})
+	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test fixture
 
 	wrap.SetInsecureSkipVerify(false)
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: false})
+	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: false}) //nolint:gosec // test fixture
 }
 
 func TestOverridesAndWraps(t *testing.T) {
@@ -96,7 +96,7 @@ func (dummyRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 
 	return &http.Response{
 		Status:     "200 OK",
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,

@@ -41,9 +41,9 @@ type WrappedTransport struct {
 // that can be modified using the returned WrappedTransport instance. This
 // usually targets `http.DefaultTransport` like this:
 //
-//     transport := httpext.WrapTransport(&http.DefaultTransport)
-//     transport.SetOverrideUserAgent("example", "1.0")
-func WrapTransport(transport *http.RoundTripper) *WrappedTransport {
+//	transport := httpext.WrapTransport(&http.DefaultTransport)
+//	transport.SetOverrideUserAgent("example", "1.0")
+func WrapTransport(transport *http.RoundTripper) *WrappedTransport { //nolint:gocritic // The pointer to an interface type is intentional.
 	orig := *transport
 	w := &WrappedTransport{
 		original: orig,
@@ -82,7 +82,7 @@ func (w *WrappedTransport) SetInsecureSkipVerify(insecure bool) {
 	}
 
 	if orig.TLSClientConfig == nil {
-		orig.TLSClientConfig = &tls.Config{}
+		orig.TLSClientConfig = &tls.Config{} //nolint:gosec // only used in HTTP client, where stdlib auto-chooses strong TLS versions
 	}
 	orig.TLSClientConfig.InsecureSkipVerify = insecure
 }
@@ -92,7 +92,7 @@ func (w *WrappedTransport) SetInsecureSkipVerify(insecure bool) {
 // string is constructed as "appName/appVersion" from the two provided
 // arguments. The arguments usually come from go-api-declarations/bininfo, for example:
 //
-//     httpext.ModifyDefaultTransport().SetOverrideUserAgent(bininfo.Component(), bininfo.Version())
+//	httpext.ModifyDefaultTransport().SetOverrideUserAgent(bininfo.Component(), bininfo.Version())
 func (w *WrappedTransport) SetOverrideUserAgent(appName, appVersion string) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
