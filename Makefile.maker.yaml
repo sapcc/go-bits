@@ -18,5 +18,10 @@ githubWorkflow:
     enabled: true
     ignorePaths: [] # override global setting so that nothing is ignored
 
+golangciLint:
+  createConfig: true
+  skipDirs:
+   - easypg/migrate/*
+
 renovate:
   enabled: true
