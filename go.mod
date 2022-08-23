@@ -12,7 +12,7 @@ require (
 	github.com/lib/pq v1.10.6
 	github.com/prometheus/client_golang v1.13.0
 	github.com/rabbitmq/amqp091-go v1.4.0
-	github.com/sapcc/go-api-declarations v1.2.0
+	github.com/sapcc/go-api-declarations v1.3.0
 	github.com/sergi/go-diff v1.2.0
 	go.uber.org/atomic v1.10.0
 	gopkg.in/yaml.v2 v2.4.0
