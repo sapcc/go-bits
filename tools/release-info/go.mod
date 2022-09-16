@@ -1,3 +1,3 @@
 module github.com/sapcc/go-bits/tools/release-info
 
-go 1.18
+go 1.19
