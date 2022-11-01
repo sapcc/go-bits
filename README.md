@@ -16,6 +16,7 @@ reusability. Feel free to add to this.
 * [logg](./logg) adds some convenience functions to [log](https://golang.org/pkg/log/).
 * [must](./must) contains convenience functions for quickly exiting on fatal errors without the need for excessive `if err != nil`.
 * [osext](./osext) contains extensions to the standard library package "os", mostly relating to parsing of environment variables.
+* [pluggable](./pluggable) is a tiny plugin factory library, for constructing different objects implementing a common interface based on a configurable type selector.
 * [respondwith](./respondwith) contains some helper functions for generating responses in HTTP handlers.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
 * [sre](./sre) contains a HTTP middleware that emits SRE-related Prometheus metrics.
