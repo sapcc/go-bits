@@ -59,9 +59,11 @@ func (c Client) GetVector(queryStr string) (model.Vector, error) {
 
 // GetSingleValue executes a Prometheus query and returns the result value. If
 // the query produces multiple values, only the first value will be returned.
-// If the query produces no values, the returned error will be of type
-// NoRowsError. This condition can be checked with `promquery.IsErrNoRows(err)`.
-func (c Client) GetSingleValue(queryStr string) (float64, error) {
+//
+// If the query produces no values, the `defaultValue` will be returned if one
+// was supplied. Otherwise, the returned error will be of type NoRowsError.
+// That condition can be checked with `promquery.IsErrNoRows(err)`.
+func (c Client) GetSingleValue(queryStr string, defaultValue *float64) (float64, error) {
 	resultVector, err := c.GetVector(queryStr)
 	if err != nil {
 		return 0, err
@@ -69,6 +71,9 @@ func (c Client) GetSingleValue(queryStr string) (float64, error) {
 
 	switch resultVector.Len() {
 	case 0:
+		if defaultValue != nil {
+			return *defaultValue, nil
+		}
 		return 0, NoRowsError{Query: queryStr}
 	case 1:
 		return float64(resultVector[0].Value), nil
