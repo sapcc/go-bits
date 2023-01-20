@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/common v0.39.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/sapcc/go-api-declarations v1.4.2
-	github.com/sergi/go-diff v1.2.0
+	github.com/sergi/go-diff v1.3.1
 	go.uber.org/atomic v1.10.0
 	gopkg.in/yaml.v2 v2.4.0
 )
