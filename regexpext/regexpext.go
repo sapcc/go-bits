@@ -209,10 +209,11 @@ func compile(in string, isBounded bool) (*regexp.Regexp, error) {
 	if ok {
 		return rx, nil
 	}
+	pattern := in
 	if isBounded {
-		in = fmt.Sprintf("^(?:%s)$", in)
+		pattern = fmt.Sprintf("^(?:%s)$", in)
 	}
-	rx, err := regexp.Compile(in)
+	rx, err := regexp.Compile(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("%q is not a valid regexp: %w", in, err)
 	}
