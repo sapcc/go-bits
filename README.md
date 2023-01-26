@@ -18,6 +18,7 @@ reusability. Feel free to add to this.
 * [osext](./osext) contains extensions to the standard library package "os", mostly relating to parsing of environment variables.
 * [pluggable](./pluggable) is a tiny plugin factory library, for constructing different objects implementing a common interface based on a configurable type selector.
 * [promquery](./promquery) provides a simplified interface for executing Prometheus queries.
+* [regexpext](./regexpext) contains convenience functions for marshalling regexes to and from string values in YAML and JSON documents.
 * [respondwith](./respondwith) contains some helper functions for generating responses in HTTP handlers.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
 * [sre](./sre) contains a HTTP middleware that emits SRE-related Prometheus metrics.
