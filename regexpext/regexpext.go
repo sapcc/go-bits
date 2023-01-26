@@ -25,12 +25,29 @@ package regexpext
 
 // NOTE on the implementation approach.
 //
-// We cannot store the compiled regexes in the Regexp and BoundedRegexp
-// instances themselves, because that would require making them structs and
-// thus breaking omitempty serialization [1]. Realistically, we are only going
-// to observe a small number of regex strings (mostly from config files), so
-// a small cache should be enough to avoid duplicate regex compilations in most
-// cases.
+// We cannot make PlainRegexp and BoundedRegexp structs, because that would
+// break omitempty serialization [1]. We also cannot do
+//
+//     type PlainRegexp *regexp.Regexp
+//
+// because newtypes based on pointer types do not allow method implementations
+// (but we need those to implement MarshalJSON etc.). We also cannot do
+//
+//     type PlainRegexp regexp.Regexp
+//
+// because the standard Regexp type has all its methods declared on its
+// respective pointer type, so these methods would not be passed onto
+// our newtypes. The last remaining option is to have our newtypes only store
+// the original regex strings:
+//
+//     type PlainRegexp string
+//
+// The validity of the regex string is validated during UnmarshalYAML or
+// UnmarshalJSON. To avoid the need to compile the same regex string multiple
+// times, we are using a small cache inside this package. Realistically, we are
+// only going to observe a small number of regex strings (mostly from config
+// files), so a small cache should be enough to avoid duplicate regex
+// compilations in most cases.
 //
 // The API is slightly complicated by the fact that we cannot rule out the
 // possibility that application code messes with the regex strings inside the
