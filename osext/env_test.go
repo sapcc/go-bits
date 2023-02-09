@@ -35,7 +35,7 @@ const DEFAULT = "some default value"
 
 func TestGetenv(t *testing.T) {
 	//test with string value
-	os.Setenv(KEY, VAL)
+	t.Setenv(KEY, VAL)
 
 	str, err := osext.NeedGetenv(KEY)
 	assert.DeepEqual(t, "result from NeedGetenv", str, VAL)
@@ -48,7 +48,7 @@ func TestGetenv(t *testing.T) {
 	assert.DeepEqual(t, "result from GetenvBool", ok, false) //not a valid boolean literal -> false
 
 	//test with empty value
-	os.Setenv(KEY, "")
+	t.Setenv(KEY, "")
 
 	_, err = osext.NeedGetenv(KEY)
 	assert.DeepEqual(t, "error from NeedGetenv", err, osext.MissingEnvError{Key: KEY})
