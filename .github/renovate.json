@@ -41,7 +41,7 @@
   ],
   "prHourlyLimit": 0,
   "schedule": [
-    "before 8am on Friday"
+    "before 8am on Thursday"
   ],
   "semanticCommits": "disabled"
 }
