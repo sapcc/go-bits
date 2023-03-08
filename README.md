@@ -21,7 +21,6 @@ reusability. Feel free to add to this.
 * [regexpext](./regexpext) contains convenience functions for marshalling regexes to and from string values in YAML and JSON documents.
 * [respondwith](./respondwith) contains some helper functions for generating responses in HTTP handlers.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
-* [sre](./sre) contains a HTTP middleware that emits SRE-related Prometheus metrics.
 * [sqlext](./sqlext) contains helper functions for SQL queries that are not specific to PostgreSQL.
 
 ## Tools
