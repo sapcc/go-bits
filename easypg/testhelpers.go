@@ -28,6 +28,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/sapcc/go-bits/osext"
 )
 
 // ClearTables removes all rows from the given tables.
