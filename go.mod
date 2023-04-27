@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.2
-	github.com/lib/pq v1.10.8
+	github.com/lib/pq v1.10.9
 	github.com/minio/sha256-simd v1.0.0
 	github.com/prometheus/client_golang v1.15.0
 	github.com/prometheus/common v0.42.0
