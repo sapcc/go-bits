@@ -11,12 +11,12 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/lib/pq v1.10.9
 	github.com/minio/sha256-simd v1.0.0
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 	github.com/prometheus/common v0.42.0
 	github.com/rabbitmq/amqp091-go v1.8.0
 	github.com/sapcc/go-api-declarations v1.5.1
 	github.com/sergi/go-diff v1.3.1
-	go.uber.org/atomic v1.10.0
+	go.uber.org/atomic v1.11.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
