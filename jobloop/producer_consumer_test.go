@@ -59,7 +59,7 @@ func (e *producerConsumerEngine) Job(registerer prometheus.Registerer) Job {
 	}).Setup(registerer)
 }
 
-func (e *producerConsumerEngine) DiscoverTask(labels prometheus.Labels) (int, error) {
+func (e *producerConsumerEngine) DiscoverTask(ctx context.Context, labels prometheus.Labels) (int, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -73,7 +73,7 @@ func (e *producerConsumerEngine) DiscoverTask(labels prometheus.Labels) (int, er
 	return e.discovered, nil
 }
 
-func (e *producerConsumerEngine) ProcessTask(value int, labels prometheus.Labels) error {
+func (e *producerConsumerEngine) ProcessTask(ctx context.Context, value int, labels prometheus.Labels) error {
 	//signal to the test that ProcessTask has been started (the test uses this to
 	//wait until the expected number of tasks were scheduled)
 	e.wgProcessorsReady.Done()
