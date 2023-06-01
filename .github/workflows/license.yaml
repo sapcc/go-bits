@@ -32,4 +32,4 @@ jobs:
         run: |
           shopt -s globstar
           go install github.com/google/addlicense@latest
-          addlicense --check -ignore "easypg/migrate/**" -- **/*.go
+          addlicense --check -ignore "vendor/**" -- **/*.go

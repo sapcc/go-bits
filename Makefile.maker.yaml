@@ -8,7 +8,6 @@ githubWorkflow:
     coveralls: true
   license:
     enabled: true
-    ignorePatterns: [ "easypg/migrate/**" ]
   securityChecks:
     enabled: true
   spellCheck:
@@ -17,8 +16,6 @@ githubWorkflow:
 
 golangciLint:
   createConfig: true
-  skipDirs:
-   - easypg/migrate/*
 
 renovate:
   enabled: true

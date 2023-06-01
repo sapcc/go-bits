@@ -6,8 +6,6 @@
 run:
   deadline: 3m # 1m by default
   modules-download-mode: readonly
-  skip-dirs:
-    - easypg/migrate/*
 
 output:
   # Do not print lines of code with issue.
