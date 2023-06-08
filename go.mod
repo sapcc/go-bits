@@ -8,7 +8,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.16.1
 	github.com/gophercloud/gophercloud v1.4.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/golang-lru/v2 v2.0.2
+	github.com/hashicorp/golang-lru/v2 v2.0.3
 	github.com/lib/pq v1.10.9
 	github.com/minio/sha256-simd v1.0.1
 	github.com/prometheus/client_golang v1.15.1
