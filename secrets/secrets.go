@@ -31,7 +31,7 @@ import (
 type FromEnv string
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (p *FromEnv) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (p *FromEnv) UnmarshalYAML(unmarshal func(any) error) error {
 	//plain text value
 	var plainTextInput string
 	err := unmarshal(&plainTextInput)
