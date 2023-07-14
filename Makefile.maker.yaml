@@ -1,18 +1,16 @@
 # Configuration file for <https://github.com/sapcc/go-makefile-maker>
 
 githubWorkflow:
-  global:
-    ignorePaths: [ "**.md" ] # all Markdown files
   ci:
     enabled: true
     coveralls: true
+    ignorePaths: [ "**.md" ] # all Markdown files
   license:
     enabled: true
   securityChecks:
     enabled: true
   spellCheck:
     enabled: true
-    ignorePaths: [] # override global setting so that nothing is ignored
 
 golangciLint:
   createConfig: true

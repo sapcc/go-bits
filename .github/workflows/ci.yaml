@@ -18,8 +18,8 @@ name: CI
 permissions:
   contents: read
 jobs:
-  lint:
-    name: Lint
+  buildAndLint:
+    name: Build & Lint
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -35,7 +35,7 @@ jobs:
   test:
     name: Test
     needs:
-      - lint
+      - buildAndLint
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
