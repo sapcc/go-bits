@@ -69,6 +69,7 @@ func ForeachRow(db Executor, query string, args []any, action func(*sql.Rows) er
 // that a transaction is automatically rolled back when a function fails.
 func RollbackUnlessCommitted(tx Rollbacker) {
 	err := tx.Rollback()
+	//nolint:errorlint // not applicable
 	switch err {
 	case nil:
 		//rolled back successfully

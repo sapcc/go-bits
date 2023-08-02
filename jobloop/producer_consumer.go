@@ -21,6 +21,7 @@ package jobloop
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -108,7 +109,7 @@ type producerConsumerJobImpl[T any] struct {
 func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context) (T, prometheus.Labels, error) {
 	labels := j.Metadata.makeLabels()
 	task, err := j.DiscoverTask(ctx, labels)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		err = fmt.Errorf("could not select task for job %q: %w", j.Metadata.ReadableName, err)
 		j.Metadata.countTask(labels, err)
 	}
@@ -212,6 +213,7 @@ func (i producerConsumerJobImpl[T]) runMultiThreaded(ctx context.Context, numGor
 }
 
 func logAndSlowDownOnError(err error) {
+	//nolint:errorlint // not applicable
 	switch err {
 	case nil:
 		//nothing to do here

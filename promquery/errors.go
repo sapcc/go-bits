@@ -37,6 +37,7 @@ func IsErrNoRows(err error) bool {
 	if err == nil {
 		return false
 	}
+	//nolint:errorlint // not applicable
 	_, ok := err.(NoRowsError)
 	return ok
 }

@@ -21,6 +21,7 @@ package httpext
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
@@ -48,9 +49,10 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 
 func TestOverridesAndWraps(t *testing.T) {
 	rt := http.RoundTripper(dummyRoundTripper{})
+	ctx := context.TODO()
 
 	//baseline
-	hdr := makeDummyRequest(t, rt)
+	hdr := makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
 		"Host":   {"Dummy RoundTripper"},
 		"Origin": {"Dummy Request"},
@@ -58,7 +60,7 @@ func TestOverridesAndWraps(t *testing.T) {
 
 	//just wrapping the RoundTripper without configuring anything does not change the result
 	wrap := WrapTransport(&rt)
-	hdr = makeDummyRequest(t, rt)
+	hdr = makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
 		"Host":   {"Dummy RoundTripper"},
 		"Origin": {"Dummy Request"},
@@ -66,7 +68,7 @@ func TestOverridesAndWraps(t *testing.T) {
 
 	//now we add our User-Agent
 	wrap.SetOverrideUserAgent("foo", "1.0")
-	hdr = makeDummyRequest(t, rt)
+	hdr = makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
 		"Host":       {"Dummy RoundTripper"},
 		"Origin":     {"Dummy Request"},
@@ -75,7 +77,7 @@ func TestOverridesAndWraps(t *testing.T) {
 
 	//and we attach an additional middleware
 	wrap.Attach(addHeader("Foo", "Bar"))
-	hdr = makeDummyRequest(t, rt)
+	hdr = makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
 		"Foo":        {"Bar"},
 		"Host":       {"Dummy RoundTripper"},
@@ -106,10 +108,10 @@ func (dummyRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	}, nil
 }
 
-func makeDummyRequest(t *testing.T, rt http.RoundTripper) http.Header {
+func makeDummyRequest(t *testing.T, ctx context.Context, rt http.RoundTripper) http.Header {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "http://example.com/", http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://example.com/", http.NoBody)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
