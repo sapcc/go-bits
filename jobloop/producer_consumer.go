@@ -213,11 +213,10 @@ func (i producerConsumerJobImpl[T]) runMultiThreaded(ctx context.Context, numGor
 }
 
 func logAndSlowDownOnError(err error) {
-	//nolint:errorlint // not applicable
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		//nothing to do here
-	case sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		//no tasks waiting right now - slow down a bit to avoid useless DB load
 		time.Sleep(3 * time.Second)
 	default:
