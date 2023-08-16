@@ -16,6 +16,7 @@ reusability. Feel free to add to this.
 * [httpext](./httpext) adds some convenience functions to [net/http](https://golang.org/pkg/http/).
 * [jobloop](./jobloop) contains the Job trait, which abstracts over reusable implementations of worker loops.
 * [logg](./logg) adds some convenience functions to [log](https://golang.org/pkg/log/).
+* [mock](./mock) contains basic mocks and test doubles.
 * [must](./must) contains convenience functions for quickly exiting on fatal errors without the need for excessive `if err != nil`.
 * [osext](./osext) contains extensions to the standard library package "os", mostly relating to parsing of environment variables.
 * [pluggable](./pluggable) is a tiny plugin factory library, for constructing different objects implementing a common interface based on a configurable type selector.
