@@ -6,9 +6,9 @@ require (
 	github.com/databus23/goslo.policy v0.0.0-20210929125152-81bf2876dbdb
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.16.2
-	github.com/gophercloud/gophercloud v1.5.0
+	github.com/gophercloud/gophercloud v1.6.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/golang-lru/v2 v2.0.5
+	github.com/hashicorp/golang-lru/v2 v2.0.6
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/common v0.44.0
