@@ -8,11 +8,11 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/gophercloud/gophercloud v1.7.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/golang-lru/v2 v2.0.6
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.17.0
 	github.com/prometheus/common v0.44.0
-	github.com/rabbitmq/amqp091-go v1.8.1
+	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/sapcc/go-api-declarations v1.8.3
 	github.com/sergi/go-diff v1.3.1
 	gopkg.in/yaml.v2 v2.4.0
