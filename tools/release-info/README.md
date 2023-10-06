@@ -1,9 +1,39 @@
 # release-info
 
-`release-info` extracts the changes for a specific version from a changelog file that uses
-the [Keep a changelog](https://keepachangelog.com) format and prints the result.
+`release-info` extracts and prints the changes for a specific version from a changelog file that uses the [keep a changelog](https://keepachangelog.com/en/1.1.0/) format.
 
-We use it in our GitHub action for updating a GitHub release's description, whenever we publish a new release ([example](https://github.com/sapcc/limesctl/blob/a3c3ff1c5df528c5eef6da1b61cbf08b08705038/.github/workflows/release.yml#L34-L43)).
+Although `release-info` is designed for working with "keep a changelog" format, you don't necessarily need to adhere to it entirely.
+
+The only hard requirement for `release-info` is the heading format for different versions. `release-info` expects the heading for a specific version in the following format:
+
+```
+## X.Y.Z - YEAR-MONTH-DATE
+```
+
+> [!NOTE]
+> You can also prefix the version with `v`, e.g. `vX.Y.Z`. However, for simplicity it is recommended that you omit the prefix.
+
+You can use any arbitrary format for your changelog as long as you use the above heading format for versions.
+
+## Example
+
+The following is an example of what a minimal changelog file could look like:
+
+```
+## 2.0.0 - 2022-10-01
+
+- Added some breaking changes.
+
+...
+
+## 1.0.1 - 2021-05-13
+
+- Fixed a bug.
+
+## 1.0.0 - 2021-05-10
+
+Initial release
+```
 
 ## Usage
 
