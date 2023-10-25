@@ -21,6 +21,8 @@ import (
 	"strings"
 )
 
+// GetPasswordFromCommandIfRequested evaluates the $OS_PW_CMD environment
+// variable if it exists and $OS_PASSWORD has not been provided.
 func GetPasswordFromCommandIfRequested() error {
 	pwCmd := os.Getenv("OS_PW_CMD")
 	if pwCmd == "" || os.Getenv("OS_PASSWORD") != "" {
