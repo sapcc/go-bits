@@ -7,7 +7,7 @@ require (
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/gophercloud/gophercloud v1.7.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.17.0
