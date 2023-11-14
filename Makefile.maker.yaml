@@ -12,9 +12,6 @@ githubWorkflow:
     enabled: true
   securityChecks:
     enabled: true
-  spellCheck:
-    enabled: true
-
 golangciLint:
   createConfig: true
 
