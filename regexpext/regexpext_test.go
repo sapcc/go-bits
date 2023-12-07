@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	yaml_v2 "gopkg.in/yaml.v2"
+	yaml_v2 "gopkg.in/yaml.v3"
 	yaml_v3 "gopkg.in/yaml.v3"
 
 	"github.com/sapcc/go-bits/assert"
