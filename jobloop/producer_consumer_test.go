@@ -36,12 +36,12 @@ import (
 )
 
 type producerConsumerEngine struct {
-	//internal state of the producers and consumers (guarded by mutex)
+	// internal state of the producers and consumers (guarded by mutex)
 	mutex      sync.Mutex
 	discovered int
 	processed  []string
 
-	//hooks for the test to control the order of execution
+	// hooks for the test to control the order of execution
 	processingBlocker chan struct{}
 	wgProcessorsReady sync.WaitGroup
 }
@@ -63,27 +63,27 @@ func (e *producerConsumerEngine) DiscoverTask(ctx context.Context, labels promet
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
-	//only generate 10 tasks
+	// only generate 10 tasks
 	if e.discovered >= 10 {
 		return 0, sql.ErrNoRows
 	}
 
-	//generate the next task
+	// generate the next task
 	e.discovered += 1
 	return e.discovered, nil
 }
 
 func (e *producerConsumerEngine) ProcessTask(ctx context.Context, value int, labels prometheus.Labels) error {
-	//signal to the test that ProcessTask has been started (the test uses this to
-	//wait until the expected number of tasks were scheduled)
+	// signal to the test that ProcessTask has been started (the test uses this to
+	// wait until the expected number of tasks were scheduled)
 	e.wgProcessorsReady.Done()
-	//wait for the test to allow us to proceed
+	// wait for the test to allow us to proceed
 	if e.processingBlocker != nil {
 		for range e.processingBlocker {
 		}
 	}
 
-	//track which tasks were processed
+	// track which tasks were processed
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	e.processed = append(e.processed, fmt.Sprintf("%02d", value))
@@ -91,12 +91,12 @@ func (e *producerConsumerEngine) ProcessTask(ctx context.Context, value int, lab
 }
 
 func (e *producerConsumerEngine) checkAllProcessed(t *testing.T, registry *prometheus.Registry) {
-	//check that 10 tasks were dispatched
+	// check that 10 tasks were dispatched
 	if e.discovered != 10 {
 		t.Errorf("expected 10 tasks to be discovered, but got %d", e.discovered)
 	}
 
-	//check that all 10 tasks were processed
+	// check that all 10 tasks were processed
 	sort.Strings(e.processed)
 	if strings.Join(e.processed, ",") != "01,02,03,04,05,06,07,08,09,10" {
 		t.Errorf("expected tasks 01 through 10 to be processed, but got %v", e.processed)
@@ -118,13 +118,13 @@ func (e *producerConsumerEngine) checkAllProcessed(t *testing.T, registry *prome
 }
 
 func TestSingleThreaded(t *testing.T) {
-	//This test covers the single-threaded (or rather, single-goroutined)
-	//execution model for the ProducerConsumerJob.
+	// This test covers the single-threaded (or rather, single-goroutined)
+	// execution model for the ProducerConsumerJob.
 	engine := producerConsumerEngine{}
 	registry := prometheus.NewPedanticRegistry()
 	job := engine.Job(registry)
 
-	//start the job machinery
+	// start the job machinery
 	var wgJobLoop sync.WaitGroup
 	wgJobLoop.Add(1)
 	engine.wgProcessorsReady.Add(10)
@@ -134,9 +134,9 @@ func TestSingleThreaded(t *testing.T) {
 		job.Run(ctx)
 	}()
 
-	//wait until all tasks have been dispatched
+	// wait until all tasks have been dispatched
 	engine.wgProcessorsReady.Wait()
-	//instruct job loop to shutdown
+	// instruct job loop to shutdown
 	cancel()
 	wgJobLoop.Wait()
 
@@ -144,17 +144,17 @@ func TestSingleThreaded(t *testing.T) {
 }
 
 func TestMultiThreaded(t *testing.T) {
-	//This test checks that the queueing in the multi-threaded job loop works as
+	// This test checks that the queueing in the multi-threaded job loop works as
 	//intended: When there are multiple operations to execute, each operation
-	//gets executed exactly once, without having to wait for earlier tasks to
-	//complete (as long as there are enough workers).
+	// gets executed exactly once, without having to wait for earlier tasks to
+	// complete (as long as there are enough workers).
 	engine := producerConsumerEngine{
 		processingBlocker: make(chan struct{}),
 	}
 	registry := prometheus.NewPedanticRegistry()
 	job := engine.Job(registry)
 
-	//start the job machinery
+	// start the job machinery
 	var wgJobLoop sync.WaitGroup
 	wgJobLoop.Add(1)
 	engine.wgProcessorsReady.Add(10)
@@ -164,11 +164,11 @@ func TestMultiThreaded(t *testing.T) {
 		job.Run(ctx, NumGoroutines(11))
 	}()
 
-	//wait until all tasks have been dispatched
+	// wait until all tasks have been dispatched
 	engine.wgProcessorsReady.Wait()
-	//allow them to proceed all at once
+	// allow them to proceed all at once
 	close(engine.processingBlocker)
-	//wait until all processing is done
+	// wait until all processing is done
 	cancel()
 	wgJobLoop.Wait()
 

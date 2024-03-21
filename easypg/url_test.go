@@ -26,12 +26,12 @@ import (
 )
 
 func TestURLFrom(t *testing.T) {
-	//replace os.Hostname() with a test double
+	// replace os.Hostname() with a test double
 	osHostname = func() (string, error) {
 		return "testhostname", nil
 	}
 
-	//check a URL with everything set
+	// check a URL with everything set
 	url, err := URLFrom(URLParts{
 		HostName:          "localhost",
 		Port:              "5432",
@@ -46,7 +46,7 @@ func TestURLFrom(t *testing.T) {
 	expected := "postgres://foouser:foopass@localhost:5432/foodb?application_name=go-bits%40testhostname&sslmode=disable"
 	assert.DeepEqual(t, "URLFrom result with everything included", url.String(), expected)
 
-	//check a URL with optional parts omitted
+	// check a URL with optional parts omitted
 	url, err = URLFrom(URLParts{
 		HostName:     "localhost",
 		UserName:     "foouser",

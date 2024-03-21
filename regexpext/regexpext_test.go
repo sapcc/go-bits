@@ -99,7 +99,7 @@ func TestUnmarshalGood(t *testing.T) {
 		}
 		assert.DeepEqual(t, "td.Bounded", rx.String(), "^(?:hey?llo)$")
 
-		//test behavior of shortcut methods
+		// test behavior of shortcut methods
 		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("hello"), true)
 		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("helko"), false)
 		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("--hello--"), true)
@@ -146,7 +146,7 @@ func TestUnmarshalEmpty(t *testing.T) {
 		assert.DeepEqual(t, "td.Plain", td.Plain, PlainRegexp(""))
 		assert.DeepEqual(t, "td.Bounded", td.Bounded, BoundedRegexp(""))
 
-		//test behavior of shortcut methods
+		// test behavior of shortcut methods
 		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString(""), true)
 		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("foo"), true)
 		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString(""), true)

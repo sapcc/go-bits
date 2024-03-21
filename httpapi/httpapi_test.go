@@ -42,7 +42,7 @@ import (
 )
 
 func TestHealthCheckAPI(t *testing.T) {
-	//setup the healthcheck API with a choice of error value
+	// setup the healthcheck API with a choice of error value
 	var currentError error
 	h := Compose(
 		HealthCheckAPI{
@@ -53,7 +53,7 @@ func TestHealthCheckAPI(t *testing.T) {
 		WithoutLogging(),
 	)
 
-	//test succeeding healthcheck
+	// test succeeding healthcheck
 	currentError = nil
 	assert.HTTPRequest{
 		Method:       "GET",
@@ -62,7 +62,7 @@ func TestHealthCheckAPI(t *testing.T) {
 		ExpectBody:   assert.StringData("ok\n"),
 	}.Check(t, h)
 
-	//test failing healthcheck
+	// test failing healthcheck
 	currentError = errors.New("datacenter on fire")
 	assert.HTTPRequest{
 		Method:       "GET",
@@ -73,11 +73,11 @@ func TestHealthCheckAPI(t *testing.T) {
 }
 
 func TestLogging(t *testing.T) {
-	//setup a buffer to capture the log into
+	// setup a buffer to capture the log into
 	var buf bytes.Buffer
 	logg.SetLogger(log.New(&buf, "", 0))
 
-	//after every request, we will call this function to assert on what was written into `buf`
+	// after every request, we will call this function to assert on what was written into `buf`
 	expectLog := func(pattern string) {
 		t.Helper()
 		rx := regexp.MustCompile(fmt.Sprintf("^(?:%s)$", pattern))
@@ -91,10 +91,10 @@ func TestLogging(t *testing.T) {
 	}
 
 	////////////////////////////////////////////////////////////
-	//scenario 1: everything is logged
+	// scenario 1: everything is logged
 	h := Compose(HealthCheckAPI{})
 
-	//test a minimal request that logs
+	// test a minimal request that logs
 	assert.HTTPRequest{
 		Method:       "GET",
 		Path:         "/healthcheck",
@@ -103,7 +103,7 @@ func TestLogging(t *testing.T) {
 	}.Check(t, h)
 	expectLog(`REQUEST: 192.0.2.1 - - "GET /healthcheck HTTP/1.1" 200 3 "-" "-" 0.\d{3}s\n`)
 
-	//test a request that logs header values
+	// test a request that logs header values
 	assert.HTTPRequest{
 		Method:       "GET",
 		Path:         "/healthcheck",
@@ -114,7 +114,7 @@ func TestLogging(t *testing.T) {
 	expectLog(`REQUEST: 192.0.2.1 - - "GET /healthcheck HTTP/1.1" 200 3 "https://example.org/" "unit-test/1.0" 0.\d{3}s\n`)
 
 	////////////////////////////////////////////////////////////
-	//scenario 2: non-error logs are suppressed
+	// scenario 2: non-error logs are suppressed
 	var currentError error
 	h = Compose(
 		HealthCheckAPI{
@@ -125,7 +125,7 @@ func TestLogging(t *testing.T) {
 		},
 	)
 
-	//test a request that has its log suppressed
+	// test a request that has its log suppressed
 	assert.HTTPRequest{
 		Method:       "GET",
 		Path:         "/healthcheck",
@@ -134,7 +134,7 @@ func TestLogging(t *testing.T) {
 	}.Check(t, h)
 	expectLog("")
 
-	//test that errors are not suppressed even if the request uses SkipRequestLog()
+	// test that errors are not suppressed even if the request uses SkipRequestLog()
 	currentError = errors.New("log suppression is on fire")
 	assert.HTTPRequest{
 		Method:       "GET",
@@ -148,7 +148,7 @@ func TestLogging(t *testing.T) {
 	)
 
 	////////////////////////////////////////////////////////////
-	//scenario 3: all logs are suppressed
+	// scenario 3: all logs are suppressed
 	h = Compose(
 		HealthCheckAPI{
 			Check: func() error {
@@ -173,7 +173,7 @@ func TestMetrics(t *testing.T) {
 
 	h := Compose(metricsTestingAPI{})
 
-	//perform some calls to populate metrics
+	// perform some calls to populate metrics
 	assert.HTTPRequest{
 		Method:       "POST",
 		Path:         "/sleep/0.01/return/50",
@@ -188,7 +188,7 @@ func TestMetrics(t *testing.T) {
 		ExpectBody:   assert.StringData(strings.Repeat(".", 5000)),
 	}.Check(t, h)
 
-	//collect metrics report
+	// collect metrics report
 	assert.HTTPRequest{
 		Method:       "GET",
 		Path:         "/metrics",
@@ -221,15 +221,15 @@ func (m metricsTestingAPI) handleRequest(w http.ResponseWriter, r *http.Request)
 }
 
 func promhttpNormalizer(inner http.Handler) http.Handler {
-	//This middleware first collects a complete `GET /metrics` response, then
-	//does one very specific rewrite for test reproducability.
+	// This middleware first collects a complete `GET /metrics` response, then
+	// does one very specific rewrite for test reproducability.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//slurp the response from `GET /metrics`
+		// slurp the response from `GET /metrics`
 		rec := httptest.NewRecorder()
 		inner.ServeHTTP(rec, r)
 		resp := rec.Result()
 
-		//remove the undeterministic values for the `..._seconds_sum` metrics
+		// remove the undeterministic values for the `..._seconds_sum` metrics
 		buf, err := io.ReadAll(resp.Body)
 		if respondwith.ErrorText(w, err) {
 			return
@@ -237,7 +237,7 @@ func promhttpNormalizer(inner http.Handler) http.Handler {
 		rx := regexp.MustCompile(`(seconds_sum{[^{}]*}) \d*\.\d*(?m:$)`)
 		buf = rx.ReplaceAll(buf, []byte("$1 VARYING"))
 
-		//replay the edited response into the actual ResponseWriter
+		// replay the edited response into the actual ResponseWriter
 		for k, v := range resp.Header {
 			w.Header()[k] = v
 		}

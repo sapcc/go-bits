@@ -38,7 +38,7 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, (*tls.Config)(nil))
 
 	wrap.SetInsecureSkipVerify(false)
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, (*tls.Config)(nil)) //check that false -> false is a true no-op
+	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, (*tls.Config)(nil)) // check that false -> false is a true no-op
 
 	wrap.SetInsecureSkipVerify(true)
 	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test fixture
@@ -51,14 +51,14 @@ func TestOverridesAndWraps(t *testing.T) {
 	rt := http.RoundTripper(dummyRoundTripper{})
 	ctx := context.TODO()
 
-	//baseline
+	// baseline
 	hdr := makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
 		"Host":   {"Dummy RoundTripper"},
 		"Origin": {"Dummy Request"},
 	})
 
-	//just wrapping the RoundTripper without configuring anything does not change the result
+	// just wrapping the RoundTripper without configuring anything does not change the result
 	wrap := WrapTransport(&rt)
 	hdr = makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
@@ -66,7 +66,7 @@ func TestOverridesAndWraps(t *testing.T) {
 		"Origin": {"Dummy Request"},
 	})
 
-	//now we add our User-Agent
+	// now we add our User-Agent
 	wrap.SetOverrideUserAgent("foo", "1.0")
 	hdr = makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{
@@ -75,7 +75,7 @@ func TestOverridesAndWraps(t *testing.T) {
 		"User-Agent": {"foo/1.0"},
 	})
 
-	//and we attach an additional middleware
+	// and we attach an additional middleware
 	wrap.Attach(addHeader("Foo", "Bar"))
 	hdr = makeDummyRequest(t, ctx, rt)
 	assert.DeepEqual(t, "response headers", hdr, http.Header{

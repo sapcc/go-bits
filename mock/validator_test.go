@@ -28,7 +28,7 @@ import (
 func TestValidator(t *testing.T) {
 	v := NewValidator(NewEnforcer(), nil)
 
-	//setup a simple HTTP handler that just outputs status 204, 401 or 403 depending on auth result
+	// setup a simple HTTP handler that just outputs status 204, 401 or 403 depending on auth result
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !v.CheckToken(r).Require(w, "api:access") {
 			return
@@ -36,14 +36,14 @@ func TestValidator(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	//the default behavior is permissive
+	// the default behavior is permissive
 	assert.HTTPRequest{
 		Method:       http.MethodGet,
 		Path:         "/",
 		ExpectStatus: http.StatusNoContent,
 	}.Check(t, h)
 
-	//Forbid() on an unrelated rule does not affect the result
+	// Forbid() on an unrelated rule does not affect the result
 	v.Enforcer.Forbid("api:details")
 	assert.HTTPRequest{
 		Method:       http.MethodGet,
@@ -51,7 +51,7 @@ func TestValidator(t *testing.T) {
 		ExpectStatus: http.StatusNoContent,
 	}.Check(t, h)
 
-	//Forbid() on the relevant rule causes 403 error
+	// Forbid() on the relevant rule causes 403 error
 	v.Enforcer.Forbid("api:access")
 	assert.HTTPRequest{
 		Method:       http.MethodGet,
@@ -59,7 +59,7 @@ func TestValidator(t *testing.T) {
 		ExpectStatus: http.StatusForbidden,
 	}.Check(t, h)
 
-	//explicit Allow() reverses an earlier Forbid
+	// explicit Allow() reverses an earlier Forbid
 	v.Enforcer.Allow("api:access")
 	assert.HTTPRequest{
 		Method:       http.MethodGet,

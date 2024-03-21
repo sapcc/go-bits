@@ -48,7 +48,7 @@ func TestRegistry(t *testing.T) {
 		{"bar", 23},
 	}
 
-	//check that known plugins are constructed correctly
+	// check that known plugins are constructed correctly
 	for _, tc := range testcases {
 		instance := r.Instantiate(tc.PluginTypeID)
 		if instance == nil {
@@ -62,7 +62,7 @@ func TestRegistry(t *testing.T) {
 		}
 	}
 
-	//check that unknown plugin type ID yields a nil
+	// check that unknown plugin type ID yields a nil
 	instance := r.Instantiate("something-else")
 	if instance != nil {
 		t.Errorf("expected a nil instance, but got %#v", instance)

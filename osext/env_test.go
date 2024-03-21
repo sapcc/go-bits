@@ -34,7 +34,7 @@ const VAL = "this is an example value"
 const DEFAULT = "some default value"
 
 func TestGetenv(t *testing.T) {
-	//test with string value
+	// test with string value
 	t.Setenv(KEY, VAL)
 
 	str, err := osext.NeedGetenv(KEY)
@@ -45,9 +45,9 @@ func TestGetenv(t *testing.T) {
 	assert.DeepEqual(t, "result from GetenvOrDefault", str, VAL)
 
 	ok := osext.GetenvBool(KEY)
-	assert.DeepEqual(t, "result from GetenvBool", ok, false) //not a valid boolean literal -> false
+	assert.DeepEqual(t, "result from GetenvBool", ok, false) // not a valid boolean literal -> false
 
-	//test with empty value
+	// test with empty value
 	t.Setenv(KEY, "")
 
 	_, err = osext.NeedGetenv(KEY)
@@ -59,7 +59,7 @@ func TestGetenv(t *testing.T) {
 	ok = osext.GetenvBool(KEY)
 	assert.DeepEqual(t, "result from GetenvBool", ok, false)
 
-	//test with null value
+	// test with null value
 	os.Unsetenv(KEY)
 
 	_, err = osext.NeedGetenv(KEY)
@@ -71,7 +71,7 @@ func TestGetenv(t *testing.T) {
 	ok = osext.GetenvBool(KEY)
 	assert.DeepEqual(t, "result from GetenvBool", ok, false)
 
-	//test GetenvBool with explicitly true-ish values
+	// test GetenvBool with explicitly true-ish values
 	for _, value := range []string{"t", "True", "1"} {
 		os.Setenv(KEY, value)
 		ok = osext.GetenvBool(KEY)
@@ -79,7 +79,7 @@ func TestGetenv(t *testing.T) {
 		assert.DeepEqual(t, msg, ok, true)
 	}
 
-	//test GetenvBool with explicitly false-ish values
+	// test GetenvBool with explicitly false-ish values
 	for _, value := range []string{"f", "False", "0"} {
 		os.Setenv(KEY, value)
 		ok = osext.GetenvBool(KEY)

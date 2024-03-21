@@ -29,14 +29,14 @@ import (
 func TestAsAndIs(t *testing.T) {
 	err1 := error(fooError{23})
 
-	//unwrapped error can be type-casted
+	// unwrapped error can be type-casted
 	ferr, ok := As[fooError](err1)
 	assert.DeepEqual(t, "As", ferr, err1)
 	assert.DeepEqual(t, "As", ok, true)
 	ok = IsOfType[fooError](err1)
 	assert.DeepEqual(t, "As", ok, true)
 
-	//unwrapped error cannot be type-casted into incompatible type
+	// unwrapped error cannot be type-casted into incompatible type
 	_, ok = As[barError](err1) //nolint:errcheck
 	assert.DeepEqual(t, "As", ok, false)
 	ok = IsOfType[barError](err1)
@@ -44,20 +44,20 @@ func TestAsAndIs(t *testing.T) {
 
 	err2 := fmt.Errorf("operation failed: %w", err1)
 
-	//wrapped error can be type-casted
+	// wrapped error can be type-casted
 	ferr, ok = As[fooError](err2)
 	assert.DeepEqual(t, "As", ferr, err1)
 	assert.DeepEqual(t, "As", ok, true)
 	ok = IsOfType[fooError](err1)
 	assert.DeepEqual(t, "As", ok, true)
 
-	//wrapped error cannot be type-casted into incompatible type
+	// wrapped error cannot be type-casted into incompatible type
 	_, ok = As[barError](err2) //nolint:errcheck
 	assert.DeepEqual(t, "As", ok, false)
 	ok = IsOfType[barError](err1)
 	assert.DeepEqual(t, "As", ok, false)
 
-	//nil error cannot be type-casted at all
+	// nil error cannot be type-casted at all
 	_, ok = As[fooError](nil) //nolint:errcheck
 	assert.DeepEqual(t, "As", ok, false)
 	ok = IsOfType[fooError](nil)

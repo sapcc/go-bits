@@ -42,7 +42,7 @@ func CreateClient() (*api.Client, error) {
 	// always prefer VAULT_TOKEN environment variable
 	if os.Getenv("VAULT_TOKEN") == "" {
 		if os.Getenv("VAULT_ROLE_ID") != "" && os.Getenv("VAULT_SECRET_ID") != "" {
-			//perform app-role authentication if necessary
+			// perform app-role authentication if necessary
 			resp, err := client.Logical().Write("auth/approle/login", map[string]interface{}{
 				"role_id":   os.Getenv("VAULT_ROLE_ID"),
 				"secret_id": os.Getenv("VAULT_SECRET_ID"),
