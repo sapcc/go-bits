@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/vault/api v1.12.2
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.19.0
-	github.com/prometheus/common v0.50.0
+	github.com/prometheus/common v0.51.1
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/sapcc/go-api-declarations v1.10.9
 	github.com/sergi/go-diff v1.3.1
