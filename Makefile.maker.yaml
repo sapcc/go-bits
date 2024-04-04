@@ -7,11 +7,7 @@ githubWorkflow:
   ci:
     enabled: true
     coveralls: true
-    ignorePaths: [ "**.md" ] # all Markdown files
-  license:
-    enabled: true
-  securityChecks:
-    enabled: true
+
 golangciLint:
   createConfig: true
 
