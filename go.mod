@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/databus23/goslo.policy v0.0.0-20210929125152-81bf2876dbdb
-	github.com/gofrs/uuid/v5 v5.0.0
+	github.com/gofrs/uuid/v5 v5.1.0
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/gophercloud/gophercloud v1.11.0
 	github.com/gorilla/mux v1.8.1
@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/vault/api v1.12.2
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.19.0
-	github.com/prometheus/common v0.52.2
+	github.com/prometheus/common v0.52.3
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/sapcc/go-api-declarations v1.10.11
 	github.com/sergi/go-diff v1.3.1
