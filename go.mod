@@ -6,6 +6,7 @@ require (
 	github.com/databus23/goslo.policy v0.0.0-20210929125152-81bf2876dbdb
 	github.com/gofrs/uuid/v5 v5.1.0
 	github.com/golang-migrate/migrate/v4 v4.17.0
+	github.com/google/go-cmp v0.6.0
 	github.com/gophercloud/gophercloud v1.11.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
