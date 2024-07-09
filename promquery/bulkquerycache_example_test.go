@@ -19,6 +19,7 @@
 package promquery_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -62,7 +63,7 @@ func ExampleBulkQueryCache() {
 	cache := promquery.NewBulkQueryCache(queries, 5*time.Minute, client)
 	for _, arg := range os.Args[1:] {
 		hostName := HostName(arg)
-		entry := must.Return(cache.Get(hostName))
+		entry := must.Return(cache.Get(context.Background(), hostName))
 		usagePercent := 100 * float64(entry.UsedBytes) / float64(entry.CapacityBytes)
 		fmt.Printf("disk usage on %s is %g%%\n", hostName, usagePercent)
 	}
