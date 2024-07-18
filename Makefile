@@ -23,6 +23,7 @@ prepare-static-check: FORCE
 GO_BUILDFLAGS =
 GO_LDFLAGS =
 GO_TESTENV =
+GO_BUILDENV =
 
 # These definitions are overridable, e.g. to provide fixed version/commit values when
 # no .git directory is present or to provide a fixed build date for reproducibility.
