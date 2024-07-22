@@ -20,6 +20,7 @@ package promquery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -102,6 +103,10 @@ func (c *BulkQueryCache[K, V]) fillCacheIfNecessary(ctx context.Context) error {
 		vector, err := c.client.GetVector(ctx, q.Query)
 		if err != nil {
 			return fmt.Errorf("cannot collect %s: %w", q.Description, err)
+		}
+		// prevent empty prometheus results from being processed downstream.
+		if len(vector) == 0 {
+			return errors.New("did not receive any values from prometheus")
 		}
 		for _, sample := range vector {
 			key := q.Keyer(sample)
