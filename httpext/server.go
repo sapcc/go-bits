@@ -107,12 +107,12 @@ func listenAndServeContext(ctx context.Context, server *http.Server, listenAndSe
 	}()
 
 	listenAndServeErr := listenAndServe()
-	if listenAndServeErr != http.ErrServerClosed {
+	if listenAndServeErr != http.ErrServerClosed { //nolint:errorlint // errorlint usually understands that this error is returned directly from ListenAndServe(), but the indirection confuses it
 		shutdownServer <- struct{}{}
 	}
 
 	shutdownErr := <-waitForServerShutdown
-	if listenAndServeErr == http.ErrServerClosed {
+	if listenAndServeErr == http.ErrServerClosed { //nolint:errorlint // same as above
 		return addPrefix(shutdownErr, "ListenAndServeContext: could not shutdown HTTP server")
 	}
 
