@@ -92,6 +92,11 @@ type RunOpts struct {
 	// (Required.) Where the HTTP server will listen by default, e.g. ":8080".
 	// Can be overridden at runtime by setting $LIQUID_LISTEN_ADDRESS.
 	DefaultListenAddress string
+
+	// If set, the server will be run with TLS support. Can be overridden at
+	// runtime by setting $LIQUID_TLS_CERT_PATH and $LIQUID_TLS_KEY_PATH.
+	DefaultTLSCertificatePath string
+	DefaultTLSPrivateKeyPath  string
 }
 
 type runtime struct {
@@ -207,7 +212,13 @@ func Run(ctx context.Context, logic Logic, opts RunOpts) error {
 
 	// run HTTP server
 	listenAddr := osext.GetenvOrDefault("LIQUID_LISTEN_ADDRESS", opts.DefaultListenAddress)
-	err = httpext.ListenAndServeContext(ctx, listenAddr, muxer)
+	if opts.DefaultTLSCertificatePath != "" {
+		certFile := osext.GetenvOrDefault("LIQUID_TLS_CERT_PATH", opts.DefaultTLSCertificatePath)
+		keyFile := osext.GetenvOrDefault("LIQUID_TLS_KEY_PATH", opts.DefaultTLSPrivateKeyPath)
+		err = httpext.ListenAndServeTLSContext(ctx, listenAddr, certFile, keyFile, muxer)
+	} else {
+		err = httpext.ListenAndServeContext(ctx, listenAddr, muxer)
+	}
 	if err == nil {
 		// if we terminated because of an error in pollServiceInfo, fetch the error
 		select {
