@@ -31,7 +31,7 @@ func TestAsAndIs(t *testing.T) {
 
 	// unwrapped error can be type-casted
 	ferr, ok := As[fooError](err1)
-	assert.DeepEqual(t, "As", ferr, err1)
+	assert.DeepEqual(t, "As", ferr.Data, 23)
 	assert.DeepEqual(t, "As", ok, true)
 	ok = IsOfType[fooError](err1)
 	assert.DeepEqual(t, "As", ok, true)
@@ -46,7 +46,7 @@ func TestAsAndIs(t *testing.T) {
 
 	// wrapped error can be type-casted
 	ferr, ok = As[fooError](err2)
-	assert.DeepEqual(t, "As", ferr, err1)
+	assert.DeepEqual(t, "As", ferr.Data, 23)
 	assert.DeepEqual(t, "As", ok, true)
 	ok = IsOfType[fooError](err1)
 	assert.DeepEqual(t, "As", ok, true)
