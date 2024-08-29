@@ -12,8 +12,8 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/lib/pq v1.10.9
-	github.com/prometheus/client_golang v1.20.1
-	github.com/prometheus/common v0.55.0
+	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/common v0.57.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/sapcc/go-api-declarations v1.12.4
 	github.com/sergi/go-diff v1.3.1
@@ -47,7 +47,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
