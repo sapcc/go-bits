@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           check-latest: true
-          go-version: "1.22"
+          go-version: "1.23"
   test:
     name: Test
     needs:
@@ -42,7 +42,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           check-latest: true
-          go-version: "1.22"
+          go-version: "1.23"
       - name: Run tests and generate coverage report
         run: make build/cover.out
       - name: Upload coverage report to Coveralls
