@@ -21,6 +21,8 @@ package regexpext
 
 import (
 	"encoding/json"
+	"fmt"
+	"regexp"
 	"testing"
 
 	yaml_v2 "gopkg.in/yaml.v2"
@@ -209,5 +211,17 @@ func TestMarshalOmitEmpty(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 		assert.DeepEqual(t, "Marshal", string(buf), proto.Pick(testOmitEmpty))
+	}
+}
+
+func TestIsLiteral(t *testing.T) {
+	// To test the implementation of isLiteral(), we show it every single
+	// printable ASCII character. Characters are not literals if
+	// regexp.QuoteMeta() escapes them; isLiteral() must agree with this.
+	for codepoint := uint8(32); codepoint < 127; codepoint++ {
+		text := fmt.Sprintf("a%cb", rune(codepoint)) // e.g. "a b", "a*b", etc.
+		expected := regexp.QuoteMeta(text) == text
+		actual := isLiteral(text)
+		assert.DeepEqual(t, fmt.Sprintf("verdict for %q", text), actual, expected)
 	}
 }
