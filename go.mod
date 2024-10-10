@@ -7,7 +7,7 @@ require (
 	github.com/gofrs/uuid/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/gophercloud/gophercloud/v2 v2.1.1
-	github.com/gophercloud/utils/v2 v2.0.0-20240919072936-a66ae2ba6ef0
+	github.com/gophercloud/utils/v2 v2.0.0-20241008104625-7cbb8fd76bb7
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.15.0
@@ -48,8 +48,8 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
