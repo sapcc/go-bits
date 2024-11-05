@@ -52,18 +52,14 @@ func NewClient(client *gophercloud.ProviderClient, endpointOpts gophercloud.Endp
 		return nil, errors.New("either ServiceType or EndpointOverride needs to be given in liquidapi.NewClient()")
 	}
 
-	var (
-		endpoint string
-		err      error
-	)
-	if opts.EndpointOverride == "" {
+	endpoint := opts.EndpointOverride
+	if endpoint == "" {
 		endpointOpts.ApplyDefaults(opts.ServiceType)
+		var err error
 		endpoint, err = client.EndpointLocator(endpointOpts)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		endpoint = opts.EndpointOverride
 	}
 
 	if opts.ServiceType == "" {
