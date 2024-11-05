@@ -48,7 +48,7 @@ type ClientOpts struct {
 
 // NewClient creates a Client for interacting with a liquid.
 func NewClient(client *gophercloud.ProviderClient, endpointOpts gophercloud.EndpointOpts, opts ClientOpts) (*Client, error) {
-	if opts.ServiceType == "" || opts.EndpointOverride == "" {
+	if opts.ServiceType == "" && opts.EndpointOverride == "" {
 		return nil, errors.New("either ServiceType or EndpointOverride needs to be given in liquidapi.NewClient()")
 	}
 
