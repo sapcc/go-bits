@@ -11,6 +11,7 @@ reusability. Feel free to add to this.
 * [audittools](./audittools) contains helper functions for establishing a connection to a RabbitMQ server (with sane defaults) and publishing messages to it.
 * [easypg](./easypg) is a database library for applications that use PostgreSQL. It integrates [golang-migrate/migrate](https://github.com/golang-migrate/migrate) for data definition and imports the libpq-based SQL driver.
 * [errext](./errext) contains convenience functions for handling and propagating errors.
+* [gophercloudext](./gophercloudext) contains convenience functions for use with [Gophercloud](https://github.com/gophercloud/gophercloud). It is specifically intended as a lightweight replacement for `gophercloud/utils` with fewer dependencies.
 * [gopherpolicy](./gopherpolicy) integrates [Gophercloud](https://github.com/gophercloud/gophercloud) with [goslo.policy](https://github.com/databus23/goslo.policy), for OpenStack services that need to validate client tokens and check permissions.
 * [httpapi](./httpapi) contains opinionated base machinery for assembling and exposing an API consisting of HTTP endpoints.
 * [httpext](./httpext) adds some convenience functions to [net/http](https://golang.org/pkg/http/).
