@@ -50,6 +50,13 @@ type ClientOpts struct {
 	// gophercloud.ProviderClient insists on taking ownership of whatever is
 	// given here, so we cannot just give http.DefaultClient here.
 	HTTPClient *http.Client
+
+	// CustomizeAuthOptions is a callback that can be used to modify the
+	// constructed AuthOptions before they are passed to the ProviderClient.
+	//
+	// This is used in rare special cases, e.g. when an application needs to
+	// spawn clients with different token scopes for specific operations.
+	CustomizeAuthOptions func(*gophercloud.AuthOptions)
 }
 
 // NewProviderClient authenticates with OpenStack using the credentials found
@@ -127,6 +134,9 @@ func NewProviderClient(ctx context.Context, optsPtr *ClientOpts) (*gophercloud.P
 		Scope:                       &scope,
 		ApplicationCredentialID:     os.Getenv(opts.EnvPrefix + "APPLICATION_CREDENTIAL_ID"),
 		ApplicationCredentialSecret: os.Getenv(opts.EnvPrefix + "APPLICATION_CREDENTIAL_SECRET"),
+	}
+	if opts.CustomizeAuthOptions != nil {
+		opts.CustomizeAuthOptions(&ao)
 	}
 
 	provider, err := openstack.NewClient(ao.IdentityEndpoint)
