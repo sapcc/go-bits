@@ -84,6 +84,11 @@ type RunOpts struct {
 	// the Logic instance to supply configuration to it, before Init() is called.
 	TakesConfiguration bool
 
+	// If set, when the runtime loads its oslo.policy from $LIQUID_POLICY_PATH,
+	// YAML will be supported in addition to JSON. This is an explicit dependency
+	// injection slot to allow the caller to choose their YAML library.
+	YAMLUnmarshal func(in []byte, out any) error
+
 	// How often the runtime will call BuildServiceInfo() to refresh the
 	// ServiceInfo of the liquid. The zero value can be used for liquids with
 	// static ServiceInfo; no polling will be performed then.
@@ -177,7 +182,7 @@ func Run(ctx context.Context, logic Logic, opts RunOpts) error {
 	if err != nil {
 		return err
 	}
-	err = tv.LoadPolicyFile(policyPath)
+	err = tv.LoadPolicyFile(policyPath, opts.YAMLUnmarshal)
 	if err != nil {
 		return err
 	}
