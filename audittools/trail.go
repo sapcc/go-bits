@@ -42,7 +42,7 @@ type AuditTrail struct {
 // The OnSuccessfulPublish and OnFailedPublish closures are executed as per
 // their respective case.
 func (t AuditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQueueName string) {
-	rc, err := NewRabbitConnection(rabbitmqURI, rabbitmqQueueName)
+	rc, err := newRabbitConnection(rabbitmqURI, rabbitmqQueueName)
 	if err != nil {
 		logg.Error(err.Error())
 	}
@@ -92,7 +92,7 @@ func (t AuditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQue
 	}
 }
 
-func refreshConnectionIfClosedOrOld(rc *RabbitConnection, uri url.URL, queueName string) *RabbitConnection {
+func refreshConnectionIfClosedOrOld(rc *rabbitConnection, uri url.URL, queueName string) *rabbitConnection {
 	if !rc.IsNilOrClosed() {
 		if time.Since(rc.LastConnectedAt) < 5*time.Minute {
 			return rc
@@ -100,7 +100,7 @@ func refreshConnectionIfClosedOrOld(rc *RabbitConnection, uri url.URL, queueName
 		rc.Disconnect()
 	}
 
-	connection, err := NewRabbitConnection(uri, queueName)
+	connection, err := newRabbitConnection(uri, queueName)
 	if err != nil {
 		logg.Error(err.Error())
 		return nil
