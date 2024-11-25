@@ -8,7 +8,7 @@ reusability. Feel free to add to this.
 ## Packages
 
 * [assert](./assert) contains various assertions for unit tests.
-* [audittools](./audittools) contains helper functions for establishing a connection to a RabbitMQ server (with sane defaults) and publishing messages to it.
+* [audittools](./audittools) contains a microframework for establishing a connection to a RabbitMQ server (with sane defaults) and publishing messages to it.
 * [easypg](./easypg) is a database library for applications that use PostgreSQL. It integrates [golang-migrate/migrate](https://github.com/golang-migrate/migrate) for data definition and imports the libpq-based SQL driver.
 * [errext](./errext) contains convenience functions for handling and propagating errors.
 * [gophercloudext](./gophercloudext) contains convenience functions for use with [Gophercloud](https://github.com/gophercloud/gophercloud). It is specifically intended as a lightweight replacement for `gophercloud/utils` with fewer dependencies.
