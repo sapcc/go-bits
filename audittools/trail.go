@@ -31,6 +31,9 @@ import (
 
 // AuditTrail holds an event sink for receiving audit events and closure functions
 // that are executed in case of successful and failed publishing.
+//
+// This is a low-level interface. New applications should use func NewAuditor
+// unless the Auditor interface is too opinionated for them.
 type AuditTrail struct {
 	EventSink           <-chan cadf.Event
 	OnSuccessfulPublish func()
