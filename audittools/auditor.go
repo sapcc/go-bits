@@ -162,7 +162,7 @@ func NewAuditor(ctx context.Context, opts AuditorOpts) (Auditor, error) {
 		return nil, err
 	}
 	eventChan := make(chan cadf.Event, 20)
-	go AuditTrail{
+	go auditTrail{
 		EventSink:           eventChan,
 		OnSuccessfulPublish: func() { successCounter.Inc() },
 		OnFailedPublish:     func() { failureCounter.Inc() },

@@ -21,8 +21,7 @@
 Package audittools provides a microframework for establishing a connection to
 a RabbitMQ server (with sane defaults) and publishing audit messages in the CADF format to it.
 
-To use it, build an AuditTrail object and spawn its Commit() event loop at initialization time.
-Then push events into it as part of your request handlers.
-Check the example on type AuditTrail for details.
+To use it, build an Auditor object through one of the various constructors.
+Then use its Record() function to push events.
 */
 package audittools
