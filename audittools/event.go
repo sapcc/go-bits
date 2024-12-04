@@ -27,7 +27,6 @@ import (
 	"github.com/gofrs/uuid/v5"
 	"github.com/sapcc/go-api-declarations/cadf"
 
-	"github.com/sapcc/go-bits/httpext"
 	"github.com/sapcc/go-bits/must"
 )
 
@@ -49,29 +48,6 @@ type Observer struct {
 // action on an OpenStack API. The most important implementor of this interface
 // is *gopherpolicy.Token.
 type UserInfo interface {
-	UserUUID() string
-	UserName() string
-	UserDomainName() string
-	// ProjectScopeUUID returns the empty string if the user's token is not for a project scope.
-	ProjectScopeUUID() string
-	// ProjectScopeName returns the empty string if the user's token is not for a project scope.
-	ProjectScopeName() string
-	// ProjectScopeDomainName returns the empty string if the user's token is not for a project scope.
-	ProjectScopeDomainName() string
-	// DomainScopeUUID returns the empty string if the user's token is not for a domain scope.
-	DomainScopeUUID() string
-	// DomainScopeName returns the empty string if the user's token is not for a domain scope.
-	DomainScopeName() string
-	// ApplicationCredentialID returns the empty string if the user's token was created through a different authentication method.
-	ApplicationCredentialID() string
-}
-
-// NonStandardUserInfo is an extension interface for type UserInfo that allows a
-// UserInfo instance to render its own cadf.Resource. This is useful for
-// UserInfo implementors representing special roles that are not backed by a
-// Keystone user.
-type NonStandardUserInfo interface {
-	UserInfo
 	AsInitiator() cadf.Resource
 }
 
@@ -89,8 +65,6 @@ type EventParameters struct {
 	Target     TargetRenderer
 }
 
-const standardUserInfoTypeURI = "service/security/account/user"
-
 // NewEvent uses EventParameters to generate an audit event.
 // Warning: this function uses GenerateUUID() to generate the Event.ID, if that fails
 // then the concerning error will be logged and it will result in program termination.
@@ -98,30 +72,6 @@ func NewEvent(p EventParameters) cadf.Event {
 	outcome := cadf.FailureOutcome
 	if p.ReasonCode >= 200 && p.ReasonCode < 300 {
 		outcome = cadf.SuccessOutcome
-	}
-
-	var initiator cadf.Resource
-	if u, ok := p.User.(NonStandardUserInfo); ok {
-		initiator = u.AsInitiator()
-	} else {
-		initiator = cadf.Resource{
-			TypeURI: standardUserInfoTypeURI,
-			// information about user
-			Name:   p.User.UserName(),
-			Domain: p.User.UserDomainName(),
-			ID:     p.User.UserUUID(),
-			Host: &cadf.Host{
-				Address: httpext.GetRequesterIPFor(p.Request),
-				Agent:   p.Request.Header.Get("User-Agent"),
-			},
-			// information about user's scope (only one of both will be filled)
-			DomainID:          p.User.DomainScopeUUID(),
-			DomainName:        p.User.DomainScopeName(),
-			ProjectID:         p.User.ProjectScopeUUID(),
-			ProjectName:       p.User.ProjectScopeName(),
-			ProjectDomainName: p.User.ProjectScopeDomainName(),
-			AppCredentialID:   p.User.ApplicationCredentialID(),
-		}
 	}
 
 	return cadf.Event{
@@ -135,7 +85,7 @@ func NewEvent(p EventParameters) cadf.Event {
 			ReasonType: "HTTP",
 			ReasonCode: strconv.Itoa(p.ReasonCode),
 		},
-		Initiator: initiator,
+		Initiator: p.User.AsInitiator(),
 		Target:    p.Target.Render(),
 		Observer: cadf.Resource{
 			TypeURI: p.Observer.TypeURI,

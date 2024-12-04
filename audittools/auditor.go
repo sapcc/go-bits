@@ -33,6 +33,7 @@ import (
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/internal"
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/go-bits/osext"
 )
@@ -247,7 +248,7 @@ func (a *MockAuditor) normalize(event cadf.Event) cadf.Event {
 	event.ID = "00000000-0000-0000-0000-000000000000"
 	event.EventTime = "2006-01-02T15:04:05.999999+00:00"
 	event.EventType = "activity"
-	if event.Initiator.TypeURI == standardUserInfoTypeURI {
+	if event.Initiator.TypeURI == internal.StandardUserInfoTypeURI {
 		// we do not care about the Initiator unless it's a NonStandardUserInfo
 		event.Initiator = cadf.Resource{}
 	}
