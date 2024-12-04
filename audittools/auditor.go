@@ -177,7 +177,7 @@ func NewAuditor(ctx context.Context, opts AuditorOpts) (Auditor, error) {
 // Record implements the Auditor interface.
 func (a *standardAuditor) Record(params EventParameters) {
 	params.Observer = a.Observer
-	a.EventSink <- NewEvent(params)
+	a.EventSink <- params.ToCADF()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -194,7 +194,7 @@ type nullAuditor struct{}
 // Record implements the Auditor interface.
 func (nullAuditor) Record(params EventParameters) {
 	if logg.ShowDebug {
-		msg, err := json.Marshal(NewEvent(params))
+		msg, err := json.Marshal(params.ToCADF())
 		if err == nil {
 			logg.Debug("audit event received: %s", string(msg))
 		}
@@ -216,7 +216,7 @@ func NewMockAuditor() *MockAuditor {
 
 // Record implements the Auditor interface.
 func (a *MockAuditor) Record(params EventParameters) {
-	a.events = append(a.events, a.normalize(NewEvent(params)))
+	a.events = append(a.events, a.normalize(params.ToCADF()))
 }
 
 // ExpectEvents checks that the recorded events are equivalent to the supplied expectation.

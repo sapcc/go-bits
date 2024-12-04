@@ -65,10 +65,12 @@ type EventParameters struct {
 	Target     TargetRenderer
 }
 
-// NewEvent uses EventParameters to generate an audit event.
-// Warning: this function uses GenerateUUID() to generate the Event.ID, if that fails
-// then the concerning error will be logged and it will result in program termination.
-func NewEvent(p EventParameters) cadf.Event {
+// ToCADF is a low-level function that converts this event into the CADF format.
+// Most applications will use the high-level interface of Auditor.Record() instead.
+//
+// Warning: This function uses GenerateUUID() to generate the Event.ID.
+// Unexpected errors during UUID generation will be logged and result in program termination.
+func (p EventParameters) ToCADF() cadf.Event {
 	outcome := cadf.FailureOutcome
 	if p.ReasonCode >= 200 && p.ReasonCode < 300 {
 		outcome = cadf.SuccessOutcome
