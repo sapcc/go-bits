@@ -32,8 +32,8 @@ import (
 
 // Target is implemented by types that describe the target object of an audit event.
 // It appears in the high-level Event type from this package.
-// Its Render() method is used to serialize it into its wire format in type cadf.Event.
 type Target interface {
+	// Serializes this object into its wire format as it appears in the Target field of type cadf.Event.
 	Render() cadf.Resource
 }
 
@@ -55,10 +55,11 @@ func (o Observer) ToCADF() cadf.Resource {
 	}
 }
 
-// UserInfo is implemented by types that describe a user who is taking an
-// action on an OpenStack API. The most important implementor of this interface
-// is *gopherpolicy.Token.
+// UserInfo is implemented by types that describe a user who is taking an action on an OpenStack service.
+// The most important implementor of this interface is *gopherpolicy.Token, for actions taken by authenticated users.
+// Application-specific custom implementors can be used for actions taken by internal processes like cronjobs.
 type UserInfo interface {
+	// Serializes this object into its wire format as it appears in the Initiator field of type cadf.Event.
 	AsInitiator() cadf.Resource
 }
 
