@@ -27,6 +27,7 @@ import (
 	"github.com/gofrs/uuid/v5"
 	"github.com/sapcc/go-api-declarations/cadf"
 
+	"github.com/sapcc/go-bits/httpext"
 	"github.com/sapcc/go-bits/must"
 )
 
@@ -60,7 +61,8 @@ func (o Observer) ToCADF() cadf.Resource {
 // Application-specific custom implementors can be used for actions taken by internal processes like cronjobs.
 type UserInfo interface {
 	// Serializes this object into its wire format as it appears in the Initiator field of type cadf.Event.
-	AsInitiator() cadf.Resource
+	// For events originating in HTTP request handlers, the provided Host object should be placed in the Host field of the result.
+	AsInitiator(cadf.Host) cadf.Resource
 }
 
 // Event is a high-level representation of an audit event.
@@ -102,7 +104,10 @@ func (p Event) ToCADF(observer cadf.Resource) cadf.Event {
 			ReasonType: "HTTP",
 			ReasonCode: strconv.Itoa(p.ReasonCode),
 		},
-		Initiator:   p.User.AsInitiator(),
+		Initiator: p.User.AsInitiator(cadf.Host{
+			Address: httpext.GetRequesterIPFor(p.Request),
+			Agent:   p.Request.Header.Get("User-Agent"),
+		}),
 		Target:      p.Target.Render(),
 		Observer:    observer,
 		RequestPath: p.Request.URL.String(),
