@@ -158,7 +158,7 @@ func (t *Token) AsInitiator(host cadf.Host) cadf.Resource {
 		Name:   t.UserName(),
 		Domain: t.UserDomainName(),
 		ID:     t.UserUUID(),
-		Host:   nil, // NOTE: will be filled in package audittools based on HTTP request metadata
+		Host:   &host,
 		// information about user's scope (only one of both will be filled)
 		DomainID:          t.DomainScopeUUID(),
 		DomainName:        t.DomainScopeName(),
