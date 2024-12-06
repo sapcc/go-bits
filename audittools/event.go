@@ -30,9 +30,10 @@ import (
 	"github.com/sapcc/go-bits/must"
 )
 
-// TargetRenderer is the interface that different event types "must" implement
-// in order to render the respective cadf.Event.Target section.
-type TargetRenderer interface {
+// Target is implemented by types that describe the target object of an audit event.
+// It appears in the high-level Event type from this package.
+// Its Render() method is used to serialize it into its wire format in type cadf.Event.
+type Target interface {
 	Render() cadf.Resource
 }
 
@@ -44,6 +45,16 @@ type Observer struct {
 	ID      string
 }
 
+// ToCADF is a low-level function that converts this observer into the CADF format.
+// This function is intended for implementors of Auditor.Record() only.
+func (o Observer) ToCADF() cadf.Resource {
+	return cadf.Resource{
+		TypeURI: o.TypeURI,
+		Name:    o.Name,
+		ID:      o.ID,
+	}
+}
+
 // UserInfo is implemented by types that describe a user who is taking an
 // action on an OpenStack API. The most important implementor of this interface
 // is *gopherpolicy.Token.
@@ -51,8 +62,9 @@ type UserInfo interface {
 	AsInitiator() cadf.Resource
 }
 
-// EventParameters contains the necessary parameters for generating a cadf.Event.
-type EventParameters struct {
+// Event is a high-level representation of an audit event.
+// The Auditor will serialize it into its wire format (type cadf.Event) before sending it to Hermes.
+type Event struct {
 	Time    time.Time
 	Request *http.Request
 	// User is usually a *gopherpolicy.Token instance.
@@ -61,16 +73,18 @@ type EventParameters struct {
 	// It is recommended to use a constant from: https://golang.org/pkg/net/http/#pkg-constants
 	ReasonCode int
 	Action     cadf.Action
-	Observer   Observer
-	Target     TargetRenderer
+	Target     Target
 }
+
+// EventParameters is a deprecated alias for Event.
+type EventParameters = Event
 
 // ToCADF is a low-level function that converts this event into the CADF format.
 // Most applications will use the high-level interface of Auditor.Record() instead.
 //
 // Warning: This function uses GenerateUUID() to generate the Event.ID.
 // Unexpected errors during UUID generation will be logged and result in program termination.
-func (p EventParameters) ToCADF() cadf.Event {
+func (p Event) ToCADF(observer cadf.Resource) cadf.Event {
 	outcome := cadf.FailureOutcome
 	if p.ReasonCode >= 200 && p.ReasonCode < 300 {
 		outcome = cadf.SuccessOutcome
@@ -87,13 +101,9 @@ func (p EventParameters) ToCADF() cadf.Event {
 			ReasonType: "HTTP",
 			ReasonCode: strconv.Itoa(p.ReasonCode),
 		},
-		Initiator: p.User.AsInitiator(),
-		Target:    p.Target.Render(),
-		Observer: cadf.Resource{
-			TypeURI: p.Observer.TypeURI,
-			Name:    p.Observer.Name,
-			ID:      p.Observer.ID,
-		},
+		Initiator:   p.User.AsInitiator(),
+		Target:      p.Target.Render(),
+		Observer:    observer,
 		RequestPath: p.Request.URL.String(),
 	}
 }
