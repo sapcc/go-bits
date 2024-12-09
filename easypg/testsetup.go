@@ -222,7 +222,7 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 	}
 
 	// connect to DB (the database name is set to the test name to isolate concurrent tests from each other)
-	dbURLStr := fmt.Sprintf("postgres://postgres:postgres@localhost:%d/%s?sslmode=disable", testDBPort, strings.ToLower(t.Name()))
+	dbURLStr := fmt.Sprintf("postgres://postgres:postgres@127.0.0.1:%d/%s?sslmode=disable", testDBPort, strings.ToLower(t.Name()))
 	dbURL, err := url.Parse(dbURLStr)
 	if err != nil {
 		t.Fatalf("malformed database URL %q: %s", dbURLStr, err.Error())
