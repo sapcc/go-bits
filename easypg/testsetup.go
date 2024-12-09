@@ -234,7 +234,7 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 
 	// execute ClearTables() setup option, if any
 	for _, tableName := range params.tableNamesForClear {
-		_, err := db.Exec("DELETE FROM " + tableName) //nolint:gosec // cannot provide tableName as bind parameter
+		_, err := db.Exec(fmt.Sprintf(`DELETE FROM "%s"`, tableName))
 		if err != nil {
 			t.Fatalf("while clearing table %s: %s", tableName, err.Error())
 		}
@@ -263,7 +263,7 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 	// execute ResetPrimaryKeys() setup option, if any
 	for _, tableName := range params.tableNamesForPKReset {
 		var nextID int64
-		query := "SELECT 1 + COALESCE(MAX(id), 0) FROM " + tableName //nolint:gosec // cannot provide tableName as bind parameter
+		query := fmt.Sprintf(`SELECT 1 + COALESCE(MAX(id), 0) FROM "%s"`, tableName) //nolint:gosec // we are just using it for tests
 		err := db.QueryRow(query).Scan(&nextID)
 		if err != nil {
 			t.Fatalf("while checking IDs in table %s: %s", tableName, err.Error())
