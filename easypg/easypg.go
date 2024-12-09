@@ -68,7 +68,7 @@ type Configuration struct {
 // Connect connects to a Postgres database.
 //
 // The given URL must be a libpq connection URL, see:
-// <https://www.postgresql.org/docs/9.6/static/libpq-connect.html#LIBPQ-CONNSTRING>
+// <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>
 //
 // We recommend constructing the URL with func URLFrom.
 func Connect(dbURL url.URL, cfg Configuration) (*sql.DB, error) {
