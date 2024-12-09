@@ -36,12 +36,13 @@ import (
 // this custom port avoids conflicts with any system-wide Postgres instances on the standard port 5432
 const testDBPort = 54320
 
-var clientLaunchScript = `#!/bin/sh
+var clientLaunchScript = `#!/usr/bin/env bash
 set -euo pipefail
 
 stop_postgres() {
 	EXIT_CODE=$?
 	pg_ctl stop --wait --silent -D .testdb/datadir
+  exit "${EXIT_CODE}"
 }
 trap stop_postgres EXIT INT TERM
 
