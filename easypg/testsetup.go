@@ -31,6 +31,7 @@ import (
 
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/go-bits/must"
+	"github.com/sapcc/go-bits/sqlext"
 )
 
 // this custom port avoids conflicts with any system-wide Postgres instances on the standard port 5432
@@ -171,16 +172,31 @@ func checkPathExists(path string) (bool, error) {
 }
 
 type testSetupParams struct {
-	databaseName         string
-	tableNamesForClear   []string
-	sqlFileToLoad        string
-	tableNamesForPKReset []string
+	databaseName          string
+	sqlStatementsForClear []string
+	tableNamesForClear    []string
+	sqlFileToLoad         string
+	tableNamesForPKReset  []string
 }
 
 // TestSetupOption is an optional behavior that can be given to ConnectForTest().
 type TestSetupOption func(*testSetupParams)
 
+// ClearContentsWith is a TestSetupOption that removes records from the DB using the provided SQL statement.
+// If provided, this runs directly after connecting, before any other setup phase.
+//
+// Prefer ClearTables() over this, and only use this if ClearTables() does not work.
+func ClearContentsWith(sqlStatement string) TestSetupOption {
+	return func(params *testSetupParams) {
+		params.sqlStatementsForClear = append(params.sqlStatementsForClear, sqlext.SimplifyWhitespace(sqlStatement))
+	}
+}
+
 // ClearTables is a TestSetupOption that removes all rows from the given tables.
+//
+// This option only works for tables that can be cleared with `DELETE FROM <table>`.
+// If specific setups like "ON DELETE RESTRICT" constraints make that impossible,
+// use ClearContentsWith() to provide a specialized clearing method that runs before ClearTables().
 func ClearTables(tableNames ...string) TestSetupOption {
 	return func(params *testSetupParams) {
 		params.tableNamesForClear = append(params.tableNamesForClear, tableNames...)
@@ -248,6 +264,14 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 	db, err := Connect(*dbURL, cfg)
 	if err != nil {
 		t.Fatal(err.Error())
+	}
+
+	// execute ClearContentsWith() setup options, if any
+	for _, sqlStatement := range params.sqlStatementsForClear {
+		_, err := db.Exec(sqlStatement)
+		if err != nil {
+			t.Fatalf("while clearing contents with %q: %s", sqlStatement, err.Error())
+		}
 	}
 
 	// execute ClearTables() setup option, if any
