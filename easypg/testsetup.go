@@ -68,6 +68,8 @@ var hasTestDB = false
 //	func TestMain(m *testing.M) {
 //		easypg.WithTestDB(m, func() int { return m.Run() })
 //	}
+//
+// This function will fail when running as root (which might happen in some Docker containers), because PostgreSQL refuses to run as UID 0.
 func WithTestDB(m *testing.M, action func() int) int {
 	rootPath := must.Return(findRepositoryRootDir())
 
@@ -169,6 +171,7 @@ func checkPathExists(path string) (bool, error) {
 }
 
 type testSetupParams struct {
+	databaseName         string
 	tableNamesForClear   []string
 	sqlFileToLoad        string
 	tableNamesForPKReset []string
@@ -203,6 +206,17 @@ func ResetPrimaryKeys(tableNames ...string) TestSetupOption {
 	}
 }
 
+// OverrideDatabaseName is a TestSetupOption that picks a different database
+// name than the default of t.Name().
+//
+// This is only necessary if a single test needs to use multiple database connections at the same time,
+// e.g. to simulate two separate deployments of the application next to each other.
+func OverrideDatabaseName(dbName string) TestSetupOption {
+	return func(params *testSetupParams) {
+		params.databaseName = dbName
+	}
+}
+
 // ConnectForTest connects to the test database server managed by func WithTestDB().
 // Any number of TestSetupOption arguments can be given to reset and prepare the database for the test run.
 //
@@ -222,7 +236,11 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 	}
 
 	// connect to DB (the database name is set to the test name to isolate concurrent tests from each other)
-	dbURLStr := fmt.Sprintf("postgres://postgres:postgres@127.0.0.1:%d/%s?sslmode=disable", testDBPort, strings.ToLower(t.Name()))
+	dbName := t.Name()
+	if params.databaseName != "" {
+		dbName = params.databaseName
+	}
+	dbURLStr := fmt.Sprintf("postgres://postgres:postgres@127.0.0.1:%d/%s?sslmode=disable", testDBPort, strings.ToLower(dbName))
 	dbURL, err := url.Parse(dbURLStr)
 	if err != nil {
 		t.Fatalf("malformed database URL %q: %s", dbURLStr, err.Error())
