@@ -31,6 +31,7 @@ import (
 
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/go-bits/must"
+	"github.com/sapcc/go-bits/sqlext"
 )
 
 // this custom port avoids conflicts with any system-wide Postgres instances on the standard port 5432
@@ -68,6 +69,8 @@ var hasTestDB = false
 //	func TestMain(m *testing.M) {
 //		easypg.WithTestDB(m, func() int { return m.Run() })
 //	}
+//
+// This function will fail when running as root (which might happen in some Docker containers), because PostgreSQL refuses to run as UID 0.
 func WithTestDB(m *testing.M, action func() int) int {
 	rootPath := must.Return(findRepositoryRootDir())
 
@@ -169,15 +172,31 @@ func checkPathExists(path string) (bool, error) {
 }
 
 type testSetupParams struct {
-	tableNamesForClear   []string
-	sqlFileToLoad        string
-	tableNamesForPKReset []string
+	databaseName          string
+	sqlStatementsForClear []string
+	tableNamesForClear    []string
+	sqlFileToLoad         string
+	tableNamesForPKReset  []string
 }
 
 // TestSetupOption is an optional behavior that can be given to ConnectForTest().
 type TestSetupOption func(*testSetupParams)
 
+// ClearContentsWith is a TestSetupOption that removes records from the DB using the provided SQL statement.
+// If provided, this runs directly after connecting, before any other setup phase.
+//
+// Prefer ClearTables() over this, and only use this if ClearTables() does not work.
+func ClearContentsWith(sqlStatement string) TestSetupOption {
+	return func(params *testSetupParams) {
+		params.sqlStatementsForClear = append(params.sqlStatementsForClear, sqlext.SimplifyWhitespace(sqlStatement))
+	}
+}
+
 // ClearTables is a TestSetupOption that removes all rows from the given tables.
+//
+// This option only works for tables that can be cleared with `DELETE FROM <table>`.
+// If specific setups like "ON DELETE RESTRICT" constraints make that impossible,
+// use ClearContentsWith() to provide a specialized clearing method that runs before ClearTables().
 func ClearTables(tableNames ...string) TestSetupOption {
 	return func(params *testSetupParams) {
 		params.tableNamesForClear = append(params.tableNamesForClear, tableNames...)
@@ -203,6 +222,17 @@ func ResetPrimaryKeys(tableNames ...string) TestSetupOption {
 	}
 }
 
+// OverrideDatabaseName is a TestSetupOption that picks a different database
+// name than the default of t.Name().
+//
+// This is only necessary if a single test needs to use multiple database connections at the same time,
+// e.g. to simulate two separate deployments of the application next to each other.
+func OverrideDatabaseName(dbName string) TestSetupOption {
+	return func(params *testSetupParams) {
+		params.databaseName = dbName
+	}
+}
+
 // ConnectForTest connects to the test database server managed by func WithTestDB().
 // Any number of TestSetupOption arguments can be given to reset and prepare the database for the test run.
 //
@@ -222,7 +252,11 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 	}
 
 	// connect to DB (the database name is set to the test name to isolate concurrent tests from each other)
-	dbURLStr := fmt.Sprintf("postgres://postgres:postgres@127.0.0.1:%d/%s?sslmode=disable", testDBPort, strings.ToLower(t.Name()))
+	dbName := t.Name()
+	if params.databaseName != "" {
+		dbName = params.databaseName
+	}
+	dbURLStr := fmt.Sprintf("postgres://postgres:postgres@127.0.0.1:%d/%s?sslmode=disable", testDBPort, strings.ToLower(dbName))
 	dbURL, err := url.Parse(dbURLStr)
 	if err != nil {
 		t.Fatalf("malformed database URL %q: %s", dbURLStr, err.Error())
@@ -230,6 +264,14 @@ func ConnectForTest(t *testing.T, cfg Configuration, opts ...TestSetupOption) *s
 	db, err := Connect(*dbURL, cfg)
 	if err != nil {
 		t.Fatal(err.Error())
+	}
+
+	// execute ClearContentsWith() setup options, if any
+	for _, sqlStatement := range params.sqlStatementsForClear {
+		_, err := db.Exec(sqlStatement)
+		if err != nil {
+			t.Fatalf("while clearing contents with %q: %s", sqlStatement, err.Error())
+		}
 	}
 
 	// execute ClearTables() setup option, if any
