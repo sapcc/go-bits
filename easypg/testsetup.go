@@ -42,7 +42,7 @@ set -euo pipefail
 stop_postgres() {
 	EXIT_CODE=$?
 	pg_ctl stop --wait --silent -D .testdb/datadir
-  exit "${EXIT_CODE}"
+	exit "${EXIT_CODE}"
 }
 trap stop_postgres EXIT INT TERM
 
