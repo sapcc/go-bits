@@ -99,7 +99,7 @@ func WithTestDB(m *testing.M, action func() int) int {
 	if _, err := os.Stat(filepath.Join(rootPath, ".testdb/run/pid")); err == nil {
 		err := stopDatabaseConnection(rootPath)
 		if err != nil {
-			logg.Error("could not run pg_ctl stop: %s", err.Error())
+			logg.Error(err.Error())
 		}
 	}
 
@@ -131,7 +131,7 @@ func WithTestDB(m *testing.M, action func() int) int {
 	// stop database process (regardless of whether tests succeeded or failed!)
 	err = stopDatabaseConnection(rootPath)
 	if err != nil {
-		logg.Fatal("could not run pg_ctl stop: %s", err.Error())
+		logg.Fatal(err.Error())
 	}
 
 	return exitCode
@@ -145,7 +145,10 @@ func stopDatabaseConnection(rootPath string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
-	return err
+	if err != nil {
+		return fmt.Errorf("could not run pg_ctl stop: %w", err)
+	}
+	return nil
 }
 
 func findRepositoryRootDir() (string, error) {
