@@ -97,7 +97,7 @@ func WithTestDB(m *testing.M, action func() int) int {
 
 	// check if a previous connection is still lingering
 	if _, err := os.Stat(filepath.Join(rootPath, ".testdb/run/pid")); err == nil {
-		err := stopDatabaseConnection(rootPath)
+		err := stopDatabaseServer(rootPath)
 		if err != nil {
 			logg.Error(err.Error())
 		}
@@ -129,7 +129,7 @@ func WithTestDB(m *testing.M, action func() int) int {
 	hasTestDB = false
 
 	// stop database process (regardless of whether tests succeeded or failed!)
-	err = stopDatabaseConnection(rootPath)
+	err = stopDatabaseServer(rootPath)
 	if err != nil {
 		logg.Fatal(err.Error())
 	}
@@ -137,7 +137,7 @@ func WithTestDB(m *testing.M, action func() int) int {
 	return exitCode
 }
 
-func stopDatabaseConnection(rootPath string) error {
+func stopDatabaseServer(rootPath string) error {
 	cmd := exec.Command("pg_ctl", "stop", "--wait", "--silent", //nolint:gosec // rule G204 is overly broad
 		"-D", filepath.Join(rootPath, ".testdb/datadir"),
 	)
