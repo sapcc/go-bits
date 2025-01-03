@@ -16,7 +16,7 @@ reusability. Feel free to add to this.
 * [httpapi](./httpapi) contains opinionated base machinery for assembling and exposing an API consisting of HTTP endpoints.
 * [httpext](./httpext) adds some convenience functions to [net/http](https://golang.org/pkg/http/).
 * [jobloop](./jobloop) contains the Job trait, which abstracts over reusable implementations of worker loops.
-* [liquidapi](./liquidapi) is a server runtime for microservices implementing [LIQUID API](https://pkg.go.dev/github.com/sapcc/go-api-declarations/liquid).
+* [liquidapi](./liquidapi) contains a server runtime and various other utilities for microservices implementing the [LIQUID API](https://pkg.go.dev/github.com/sapcc/go-api-declarations/liquid).
 * [logg](./logg) adds some convenience functions to [log](https://golang.org/pkg/log/).
 * [mock](./mock) contains basic mocks and test doubles.
 * [must](./must) contains convenience functions for quickly exiting on fatal errors without the need for excessive `if err != nil`.
