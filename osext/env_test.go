@@ -73,7 +73,7 @@ func TestGetenv(t *testing.T) {
 
 	// test GetenvBool with explicitly true-ish values
 	for _, value := range []string{"t", "True", "1"} {
-		os.Setenv(KEY, value)
+		t.Setenv(KEY, value)
 		ok = osext.GetenvBool(KEY)
 		msg := fmt.Sprintf("result from GetenvBool for %q", value)
 		assert.DeepEqual(t, msg, ok, true)
@@ -81,7 +81,7 @@ func TestGetenv(t *testing.T) {
 
 	// test GetenvBool with explicitly false-ish values
 	for _, value := range []string{"f", "False", "0"} {
-		os.Setenv(KEY, value)
+		t.Setenv(KEY, value)
 		ok = osext.GetenvBool(KEY)
 		msg := fmt.Sprintf("result from GetenvBool for %q", value)
 		assert.DeepEqual(t, msg, ok, false)
