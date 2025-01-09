@@ -14,7 +14,8 @@ reusability. Feel free to add to this.
 * [gophercloudext](./gophercloudext) contains convenience functions for use with [Gophercloud](https://github.com/gophercloud/gophercloud). It is specifically intended as a lightweight replacement for `gophercloud/utils` with fewer dependencies.
 * [gopherpolicy](./gopherpolicy) integrates [Gophercloud](https://github.com/gophercloud/gophercloud) with [goslo.policy](https://github.com/databus23/goslo.policy), for OpenStack services that need to validate client tokens and check permissions.
 * [httpapi](./httpapi) contains opinionated base machinery for assembling and exposing an API consisting of HTTP endpoints.
-* [httpext](./httpext) adds some convenience functions to [net/http](https://golang.org/pkg/http/).
+* [httpext](./httpext) adds some convenience functions to [net/http](https://golang.org/pkg/net/http).
+* [httptest](./httptest) builds on [net/http/httptest](https://golang.org/pkg/net/http/httptest) to make process-local HTTP requests inside tests as smooth as possible.
 * [jobloop](./jobloop) contains the Job trait, which abstracts over reusable implementations of worker loops.
 * [liquidapi](./liquidapi) contains a server runtime and various other utilities for microservices implementing the [LIQUID API](https://pkg.go.dev/github.com/sapcc/go-api-declarations/liquid).
 * [logg](./logg) adds some convenience functions to [log](https://golang.org/pkg/log/).
