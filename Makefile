@@ -94,7 +94,7 @@ check-dependency-licenses: FORCE install-go-licence-detector
 
 goimports: FORCE
 	@printf "\e[1;36m>> goimports -w -local https://github.com/sapcc/go-bits\e[0m\n"
-	@goimports -w -local https://github.com/sapcc/go-bits internal/ $(patsubst $(shell awk '$$1 == "module" {print $$2}' go.mod)%,.%/*.go,$(shell go list ./...))
+	@goimports -w -local github.com/sapcc/go-bits $(patsubst $(shell awk '$$1 == "module" {print $$2}' go.mod)%,.%/*.go,$(shell go list ./...))
 
 clean: FORCE
 	git clean -dxf build
