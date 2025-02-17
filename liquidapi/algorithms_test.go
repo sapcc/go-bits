@@ -47,6 +47,20 @@ func TestDistributeFairlyWithLargeNumbers(t *testing.T) {
 		403: total / 4,
 		404: total / 4,
 	})
+
+	// Even after having made the above testcases green, this one occurred in the wild.
+	total = uint64(60)
+	requested = map[uint16]uint64{
+		401: 0x8000000000000000,
+		402: 0x8000000000000000,
+		403: 0x8000000000000000,
+	}
+	result = DistributeFairly(total, requested)
+	assert.DeepEqual(t, "output of DistributeFairly", result, map[uint16]uint64{
+		401: total / 3,
+		402: total / 3,
+		403: total / 3,
+	})
 }
 
 func TestDistributeDemandFairlyWithJustBalance(t *testing.T) {
