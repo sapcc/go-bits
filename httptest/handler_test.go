@@ -20,7 +20,6 @@
 package httptest_test
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -57,7 +56,7 @@ var exampleHandler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r
 
 func TestRespondTo(t *testing.T) {
 	h := httptest.NewHandler(exampleHandler)
-	ctx := context.TODO() // TODO: use t.Context() in Go 1.24+
+	ctx := t.Context() // TODO: use t.Context() in Go 1.24+
 
 	// most basic invocation
 	resp := h.RespondTo(ctx, "POST /reflect")

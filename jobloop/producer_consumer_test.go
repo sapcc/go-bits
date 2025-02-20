@@ -128,7 +128,7 @@ func TestSingleThreaded(t *testing.T) {
 	var wgJobLoop sync.WaitGroup
 	wgJobLoop.Add(1)
 	engine.wgProcessorsReady.Add(10)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
 		defer wgJobLoop.Done()
 		job.Run(ctx)
@@ -158,7 +158,7 @@ func TestMultiThreaded(t *testing.T) {
 	var wgJobLoop sync.WaitGroup
 	wgJobLoop.Add(1)
 	engine.wgProcessorsReady.Add(10)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
 		defer wgJobLoop.Done()
 		job.Run(ctx, NumGoroutines(11))

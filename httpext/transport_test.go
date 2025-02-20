@@ -49,7 +49,7 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 
 func TestOverridesAndWraps(t *testing.T) {
 	rt := http.RoundTripper(dummyRoundTripper{})
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	// baseline
 	hdr := makeDummyRequest(t, ctx, rt)
