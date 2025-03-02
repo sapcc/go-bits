@@ -82,10 +82,16 @@ func (c *Client) GetInfo(ctx context.Context) (result liquid.ServiceInfo, err er
 	if err == nil {
 		err = parseLiquidResponse(resp, &result)
 	}
+	if err == nil {
+		err = validateServiceInfo(result)
+	}
 	return
 }
 
 // GetCapacityReport executes POST /v1/report-capacity.
+//
+// The caller should call func ValidateCapacityReport on the result.
+// GetCapacityReport cannot do this by itself because it does not have all the required pieces of data.
 func (c *Client) GetCapacityReport(ctx context.Context, req liquid.ServiceCapacityRequest) (result liquid.ServiceCapacityReport, err error) {
 	url := c.ServiceURL("v1", "report-capacity")
 	opts := gophercloud.RequestOpts{KeepResponseBody: true, OkCodes: []int{http.StatusOK}}
@@ -97,6 +103,9 @@ func (c *Client) GetCapacityReport(ctx context.Context, req liquid.ServiceCapaci
 }
 
 // GetUsageReport executes POST /v1/projects/:uuid/report-usage.
+//
+// The caller should call func ValidateUsageReport on the result.
+// GetUsageReport cannot do this by itself because it does not have all the required pieces of data.
 func (c *Client) GetUsageReport(ctx context.Context, projectUUID string, req liquid.ServiceUsageRequest) (result liquid.ServiceUsageReport, err error) {
 	url := c.ServiceURL("v1", "projects", projectUUID, "report-usage")
 	opts := gophercloud.RequestOpts{KeepResponseBody: true, OkCodes: []int{http.StatusOK}}
