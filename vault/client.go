@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/api/cliconfig"
 )
 
 // CreateClient creates and returns a vault api client and supports authentication using VAULT_TOKEN, VAULT_ROLE_ID and VAULT_SECRET_ID or ~/.vault-token
@@ -39,8 +40,23 @@ func CreateClient() (*api.Client, error) {
 		return nil, fmt.Errorf("while initializing Vault client: %w", err)
 	}
 
-	// always prefer VAULT_TOKEN environment variable
-	if os.Getenv("VAULT_TOKEN") == "" {
+	token := client.Token()
+
+	if token == "" {
+		helper, err := cliconfig.DefaultTokenHelper()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get token helper: %w", err)
+		}
+		token, err = helper.Get()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get token from token helper: %w", err)
+		}
+	}
+
+	// Set the token
+	if token != "" {
+		client.SetToken(token)
+	} else {
 		if os.Getenv("VAULT_ROLE_ID") != "" && os.Getenv("VAULT_SECRET_ID") != "" {
 			// perform app-role authentication if necessary
 			resp, err := client.Logical().Write("auth/approle/login", map[string]interface{}{
