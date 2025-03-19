@@ -51,12 +51,11 @@ func CreateClient() (*api.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get token from token helper: %w", err)
 		}
+
+		client.SetToken(token)
 	}
 
-	// Set the token
-	if token != "" {
-		client.SetToken(token)
-	} else {
+	if token == "" {
 		if os.Getenv("VAULT_ROLE_ID") != "" && os.Getenv("VAULT_SECRET_ID") != "" {
 			// perform app-role authentication if necessary
 			resp, err := client.Logical().Write("auth/approle/login", map[string]interface{}{
