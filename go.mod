@@ -3,7 +3,7 @@ module github.com/sapcc/go-bits
 go 1.24
 
 require (
-	github.com/databus23/goslo.policy v0.0.0-20210929125152-81bf2876dbdb
+	github.com/databus23/goslo.policy v0.0.0-20250326134918-4afc2c56a903
 	github.com/gofrs/uuid/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/gophercloud/gophercloud/v2 v2.6.0
