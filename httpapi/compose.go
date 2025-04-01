@@ -20,8 +20,6 @@ package httpapi
 
 import (
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 // Compose constructs an http.Handler serving all the provided APIs. The Handler
@@ -30,7 +28,7 @@ import (
 func Compose(apis ...API) http.Handler {
 	autoConfigureMetricsIfNecessary()
 
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	m := middleware{inner: r}
 
 	for _, a := range apis {

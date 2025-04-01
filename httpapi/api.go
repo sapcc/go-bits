@@ -20,8 +20,6 @@ package httpapi
 
 import (
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 // API is the interface that applications can use to plug their own API
@@ -32,7 +30,7 @@ import (
 // "Without..." are available that apply to the entire http.Handler returned by
 // Compose(), instead of just adding endpoints to it.
 type API interface {
-	AddTo(r *mux.Router)
+	AddTo(r *http.ServeMux)
 }
 
 // HealthCheckAPI is an API with one endpoint, "GET /healthcheck", that
@@ -46,8 +44,8 @@ type HealthCheckAPI struct {
 }
 
 // AddTo implements the API interface.
-func (h HealthCheckAPI) AddTo(r *mux.Router) {
-	r.Methods("GET", "HEAD").Path("/healthcheck").HandlerFunc(h.handleRequest)
+func (h HealthCheckAPI) AddTo(s *http.ServeMux) {
+	s.HandleFunc("GET /healthcheck", h.handleRequest)
 }
 
 func (h HealthCheckAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +72,7 @@ type pseudoAPI struct {
 	configure func(*middleware)
 }
 
-func (p pseudoAPI) AddTo(r *mux.Router) {
+func (p pseudoAPI) AddTo(r *http.ServeMux) {
 	// no-op, see above
 }
 

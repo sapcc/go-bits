@@ -32,7 +32,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -199,21 +198,19 @@ func TestMetrics(t *testing.T) {
 
 type metricsTestingAPI struct{}
 
-func (m metricsTestingAPI) AddTo(r *mux.Router) {
-	r.Methods("POST").Path("/sleep/{secs}/return/{count}").HandlerFunc(m.handleRequest)
+func (m metricsTestingAPI) AddTo(s *http.ServeMux) {
+	s.HandleFunc("POST /sleep/{secs}/return/{count}", m.handleRequest)
 }
 
 func (m metricsTestingAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	secs, err := strconv.ParseFloat(vars["secs"], 64)
+	secs, err := strconv.ParseFloat(r.PathValue("secs"), 64)
 	if respondwith.ErrorText(w, err) {
 		return
 	}
 	//NOTE: `time.Duration(secs)` does not work because all values < 1 would all be truncated to 0.
 	time.Sleep(time.Duration(secs * float64(time.Second)))
 
-	count, err := strconv.Atoi(vars["count"])
+	count, err := strconv.Atoi(r.PathValue("count"))
 	if respondwith.ErrorText(w, err) {
 		return
 	}
