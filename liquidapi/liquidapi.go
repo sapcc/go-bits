@@ -31,7 +31,6 @@ import (
 
 	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack"
-	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sapcc/go-api-declarations/liquid"
 
@@ -289,11 +288,11 @@ func limitRequestsMiddleware(maxRequests int) func(http.Handler) http.Handler {
 }
 
 // AddTo implements the httpapi.API interface.
-func (rt *runtime) AddTo(r *mux.Router) {
-	r.Methods("GET").Path("/v1/info").HandlerFunc(rt.handleGetInfo)
-	r.Methods("POST").Path("/v1/report-capacity").HandlerFunc(rt.handleReportCapacity)
-	r.Methods("POST").Path("/v1/projects/{project_id}/report-usage").HandlerFunc(rt.handleReportUsage)
-	r.Methods("PUT").Path("/v1/projects/{project_id}/quota").HandlerFunc(rt.handleSetQuota)
+func (rt *runtime) AddTo(s *http.ServeMux) {
+	s.HandleFunc("GET /v1/info", rt.handleGetInfo)
+	s.HandleFunc("POST /v1/report-capacity", rt.handleReportCapacity)
+	s.HandleFunc("POST /v1/projects/{project_id}/report-usage", rt.handleReportUsage)
+	s.HandleFunc("PUT /v1/projects/{project_id}/quota", rt.handleSetQuota)
 }
 
 func (rt *runtime) handleGetInfo(w http.ResponseWriter, r *http.Request) {
@@ -328,14 +327,13 @@ func (rt *runtime) handleReportUsage(w http.ResponseWriter, r *http.Request) {
 	if !rt.requireToken(w, r, "liquid:get_usage") {
 		return
 	}
-	vars := mux.Vars(r)
 
 	var req liquid.ServiceUsageRequest
 	if !requireJSON(w, r, &req) {
 		return
 	}
 
-	resp, err := rt.Logic.ScanUsage(r.Context(), vars["project_id"], req, rt.getServiceInfo())
+	resp, err := rt.Logic.ScanUsage(r.Context(), r.PathValue("project_id"), req, rt.getServiceInfo())
 	if respondwith.ErrorText(w, err) {
 		return
 	}
@@ -347,14 +345,13 @@ func (rt *runtime) handleSetQuota(w http.ResponseWriter, r *http.Request) {
 	if !rt.requireToken(w, r, "liquid:set_quota") {
 		return
 	}
-	vars := mux.Vars(r)
 
 	var req liquid.ServiceQuotaRequest
 	if !requireJSON(w, r, &req) {
 		return
 	}
 
-	err := rt.Logic.SetQuota(r.Context(), vars["project_id"], req, rt.getServiceInfo())
+	err := rt.Logic.SetQuota(r.Context(), r.PathValue("project_id"), req, rt.getServiceInfo())
 	if respondwith.ErrorText(w, err) {
 		return
 	}
@@ -363,7 +360,7 @@ func (rt *runtime) handleSetQuota(w http.ResponseWriter, r *http.Request) {
 
 func (rt *runtime) requireToken(w http.ResponseWriter, r *http.Request, policyRule string) bool {
 	t := rt.TokenValidator.CheckToken(r)
-	t.Context.Request = mux.Vars(r)
+	t.Context.LookupRequestValue = r.PathValue
 	return t.Require(w, policyRule)
 }
 

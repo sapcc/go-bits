@@ -7,7 +7,6 @@ require (
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/gophercloud/gophercloud/v2 v2.6.0
-	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.16.0
 	github.com/lib/pq v1.10.9

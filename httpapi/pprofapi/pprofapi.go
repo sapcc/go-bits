@@ -30,8 +30,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/gorilla/mux"
-
 	"github.com/sapcc/go-bits/httpapi"
 	"github.com/sapcc/go-bits/httpext"
 	"github.com/sapcc/go-bits/logg"
@@ -49,12 +47,12 @@ type API struct {
 }
 
 // AddTo implements the httpapi.API interface.
-func (a API) AddTo(r *mux.Router) {
+func (a API) AddTo(s *http.ServeMux) {
 	if a.IsAuthorized == nil {
 		panic("API.AddTo() called with IsAuthorized == nil!")
 	}
 
-	r.Methods("GET").Path("/debug/pprof/{operation}").HandlerFunc(a.handler)
+	s.HandleFunc("GET /debug/pprof/{operation}", a.handler)
 }
 
 func (a API) handler(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +63,7 @@ func (a API) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch mux.Vars(r)["operation"] {
+	switch r.PathValue("operation") {
 	default:
 		pprof.Index(w, r)
 	case "cmdline":
