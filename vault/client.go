@@ -74,7 +74,7 @@ func CreateClient() (*api.Client, error) {
 			vaultTokenFile := homeDir + "/.vault-token"
 			bytes, err := os.ReadFile(vaultTokenFile)
 			if errors.Is(err, os.ErrNotExist) {
-				return nil, errors.New("Some environment variables are missing! For pipelines makes sure VAULT_ROLE_ID and VAULT_SECRET_ID are set and for manual invocations make sure VAULT_TOKEN is set or you previously logged into vault cli. DO NOT use the variables the other way around!") //nolint:stylecheck // we want it like this
+				return nil, errors.New("Some environment variables are missing! For pipelines makes sure VAULT_ROLE_ID and VAULT_SECRET_ID are set and for manual invocations make sure VAULT_TOKEN is set or you previously logged into vault cli. DO NOT use the variables the other way around!") //nolint:staticcheck // we want it like this
 			} else if err != nil {
 				return nil, fmt.Errorf("failed reading %s: %w", vaultTokenFile, err)
 			}
