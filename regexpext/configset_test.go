@@ -22,6 +22,8 @@ package regexpext
 import (
 	"testing"
 
+	. "github.com/majewsky/gg/option"
+
 	"github.com/sapcc/go-bits/assert"
 )
 
@@ -31,9 +33,9 @@ func TestConfigSetPickWithLiterals(t *testing.T) {
 		{Key: "bar", Value: 23},
 	}
 
-	assert.DeepEqual(t, `cs.Pick("foo")`, cs.Pick("foo", 5), 42)
-	assert.DeepEqual(t, `cs.Pick("bar")`, cs.Pick("bar", 5), 23)
-	assert.DeepEqual(t, `cs.Pick("qux")`, cs.Pick("qux", 5), 5)
+	assert.DeepEqual(t, `cs.Pick("foo")`, cs.Pick("foo"), Some(42))
+	assert.DeepEqual(t, `cs.Pick("bar")`, cs.Pick("bar"), Some(23))
+	assert.DeepEqual(t, `cs.Pick("qux")`, cs.Pick("qux"), None[int]())
 }
 
 func TestConfigSetPickWithRegex(t *testing.T) {
@@ -42,10 +44,10 @@ func TestConfigSetPickWithRegex(t *testing.T) {
 		{Key: "bar", Value: 23},
 	}
 
-	assert.DeepEqual(t, `cs.Pick("foo")`, cs.Pick("foo", 5), 42)
-	assert.DeepEqual(t, `cs.Pick("bar")`, cs.Pick("bar", 5), 42) // first match wins!
-	assert.DeepEqual(t, `cs.Pick("qux")`, cs.Pick("qux", 5), 5)
-	assert.DeepEqual(t, `cs.Pick("foooo")`, cs.Pick("foooo", 5), 5) // regex matches full string only
+	assert.DeepEqual(t, `cs.Pick("foo")`, cs.Pick("foo"), Some(42))
+	assert.DeepEqual(t, `cs.Pick("bar")`, cs.Pick("bar"), Some(42)) // first match wins!
+	assert.DeepEqual(t, `cs.Pick("qux")`, cs.Pick("qux"), None[int]())
+	assert.DeepEqual(t, `cs.Pick("foooo")`, cs.Pick("foooo"), None[int]()) // regex matches full string only
 }
 
 func TestConfigSetWithFill(t *testing.T) {
@@ -63,14 +65,14 @@ func TestConfigSetWithFill(t *testing.T) {
 		{Key: "Bob", Value: Name{FirstName: "Bob", LastName: "Mc$1"}},
 	}
 
-	value := cs.PickAndFill("Jane Doe", Name{}, fill)
-	assert.DeepEqual(t, `cs.PickAndFill("Jane Doe")`, value, Name{FirstName: "Jane", LastName: "Doe"})
+	value := cs.PickAndFill("Jane Doe", fill)
+	assert.DeepEqual(t, `cs.PickAndFill("Jane Doe")`, value, Some(Name{FirstName: "Jane", LastName: "Doe"}))
 
 	// expand from the same template again, but with different values (this tests that the template was not modified)
-	value = cs.PickAndFill("John Dorian", Name{}, fill)
-	assert.DeepEqual(t, `cs.PickAndFill("John Dorian")`, value, Name{FirstName: "John", LastName: "Dorian"})
+	value = cs.PickAndFill("John Dorian", fill)
+	assert.DeepEqual(t, `cs.PickAndFill("John Dorian")`, value, Some(Name{FirstName: "John", LastName: "Dorian"}))
 
 	// unknown capture groups expand to empty strings, same as regexp.ExpandString()
-	value = cs.PickAndFill("Bob", Name{}, fill)
-	assert.DeepEqual(t, `cs.PickAndFill("Bob")`, value, Name{FirstName: "Bob", LastName: "Mc"})
+	value = cs.PickAndFill("Bob", fill)
+	assert.DeepEqual(t, `cs.PickAndFill("Bob")`, value, Some(Name{FirstName: "Bob", LastName: "Mc"}))
 }
