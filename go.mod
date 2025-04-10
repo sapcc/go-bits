@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/vault/api v1.16.0
 	github.com/lib/pq v1.10.9
 	github.com/majewsky/gg v1.0.0
-	github.com/prometheus/client_golang v1.21.1
+	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.63.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/sapcc/go-api-declarations v1.14.3
@@ -36,7 +36,6 @@ require (
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
