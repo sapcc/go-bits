@@ -5,13 +5,13 @@ go 1.24
 require (
 	github.com/databus23/goslo.policy v0.0.0-20250326134918-4afc2c56a903
 	github.com/gofrs/uuid/v5 v5.3.2
-	github.com/golang-migrate/migrate/v4 v4.18.2
+	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/gophercloud/gophercloud/v2 v2.7.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.16.0
 	github.com/lib/pq v1.10.9
-	github.com/majewsky/gg v1.0.0
+	github.com/majewsky/gg v1.1.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.63.0
 	github.com/rabbitmq/amqp091-go v1.10.0
