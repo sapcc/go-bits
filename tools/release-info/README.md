@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 SAP SE or an SAP affiliate company
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # release-info
 
 `release-info` extracts and prints the changes for a specific version from a changelog file that uses the [keep a changelog](https://keepachangelog.com/en/1.1.0/) format.

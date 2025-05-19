@@ -18,3 +18,11 @@ path = [
 ]
 SPDX-FileCopyrightText = "SAP SE or an SAP affiliate company"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+  "httpapi/fixtures/metrics.prom",
+  "tools/release-info/go.mod",
+]
+SPDX-FileCopyrightText = "SAP SE or an SAP affiliate company"
+SPDX-License-Identifier = "Apache-2.0"

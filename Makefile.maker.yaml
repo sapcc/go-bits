@@ -16,3 +16,11 @@ renovate:
   assignees:
     - majewsky
     - SuperSandro2000
+
+reuse:
+  annotations:
+    - paths:
+      - httpapi/fixtures/metrics.prom
+      - tools/release-info/go.mod
+      SPDX-FileCopyrightText: SAP SE or an SAP affiliate company
+      SPDX-License-Identifier: Apache-2.0
