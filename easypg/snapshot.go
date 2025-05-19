@@ -22,6 +22,7 @@ package easypg
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -78,7 +79,9 @@ func newDBSnapshot(t TestingT, db *sql.DB) dbSnapshot {
 			columnName string
 		)
 		failOnErr(t, rows.Scan(&tableName, &columnName))
-		keyColumnNames[tableName] = append(keyColumnNames[tableName], columnName)
+		if !slices.Contains(keyColumnNames[tableName], columnName) {
+			keyColumnNames[tableName] = append(keyColumnNames[tableName], columnName)
+		}
 	}
 	failOnErr(t, rows.Err())
 	failOnErr(t, rows.Close()) //nolint:sqlclosecheck
