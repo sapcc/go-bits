@@ -6,6 +6,8 @@
 package secrets
 
 import (
+	"encoding/json"
+
 	"github.com/sapcc/go-bits/osext"
 )
 
@@ -14,8 +16,17 @@ import (
 // The key has the format: `{ fromEnv: ENVIRONMENT_VARIABLE }`.
 type FromEnv string
 
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (p *FromEnv) UnmarshalJSON(buf []byte) error {
+	return p.unmarshalImpl(func(target any) error { return json.Unmarshal(buf, target) })
+}
+
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (p *FromEnv) UnmarshalYAML(unmarshal func(any) error) error {
+	return p.unmarshalImpl(unmarshal)
+}
+
+func (p *FromEnv) unmarshalImpl(unmarshal func(any) error) error {
 	// plain text value
 	var plainTextInput string
 	err := unmarshal(&plainTextInput)
@@ -26,7 +37,7 @@ func (p *FromEnv) UnmarshalYAML(unmarshal func(any) error) error {
 
 	// retrieve value from the given environment variable key
 	var envVariableInput struct {
-		Key string `yaml:"fromEnv"`
+		Key string `json:"fromEnv" yaml:"fromEnv"`
 	}
 	err = unmarshal(&envVariableInput)
 	if err != nil {
@@ -39,6 +50,5 @@ func (p *FromEnv) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 
 	*p = FromEnv(valFromEnv)
-
 	return nil
 }
