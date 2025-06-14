@@ -88,30 +88,63 @@ func (o JSONObject) GetRequestBody() (io.Reader, error) {
 func (o JSONObject) AssertResponseBody(t *testing.T, requestInfo string, responseBody []byte) bool {
 	t.Helper()
 
-	buf, err := json.Marshal(o)
-	if err != nil {
-		t.Error(err.Error())
-		return false
+	diffs := getDiffsForJSONObject(".", responseBody, o)
+	for _, diff := range diffs {
+		t.Errorf("in responseBody of %s: %s", requestInfo, diff.Message)
+		t.Logf("\texpected = %s\n", diff.ExpectedJSON)
+		t.Logf("\t  actual = %s\n", diff.ActualJSON)
 	}
 
-	// need to decode and re-encode the responseBody to ensure identical ordering of keys
-	var data map[string]any
-	err = json.Unmarshal(responseBody, &data)
-	if err == nil {
-		responseBody, err = json.Marshal(data)
-		if err != nil {
-			t.Errorf("JSON marshalling failed: %s", err.Error())
-			return false
-		}
-	}
+	return len(diffs) == 0
+}
 
-	if string(responseBody) != string(buf) {
-		t.Errorf("%s: got unexpected response body", requestInfo)
-		logDiff(t, string(buf), string(responseBody))
-		return false
-	}
+// CaptureField can be slotted into a JSONObject instance to capture specific
+// generated values from an HTTP response body without having to unmarshal
+// the entire response into a structured type. For example:
+//
+//	// create an object and capture the generated UUID
+//	var uuid string
+//	assert.HTTPRequest {
+//		Method: http.StatusPost,
+//		Path:   "/v1/objects/new",
+//		Body:   assert.JSONObject{
+//			Value: "hello world",
+//		},
+//		ExpectStatus: http.StatusCreated,
+//		ExpectBody:   assert.JSONObject{
+//			UUID:  assert.CaptureField(&uuid),
+//			Value: "hello world",
+//		},
+//	}.Check(t, handler)
+//
+//	// test deleting that object
+//	assert.HTTPRequest {
+//		Method:       http.StatusDelete,
+//		Path:         "/v1/objects/" + uuid,
+//		ExpectStatus: http.StatusNoContent,
+//	}.Check(t, handler)
+//
+// Captured fields only work inside an assert.JSONObject or slice thereof, or
+// within map[string]any or []any. If any level above the captured field is not
+// one of these four types, the recursion will not be able to find and fill it.
+func CaptureField[T any](target *T) any {
+	// NOTE: The public interface is using generics because that allows enforcing
+	// that `target` is passed as pointer. But the internal representation holds
+	// `target` as `any` because not having type arguments on the capturedField
+	// type makes it easier to reflect on that type.
+	return capturedField{target}
+}
 
-	return true
+type capturedField struct {
+	PointerToTarget any
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+//
+// This implementation ensures that `capturedField` looks like its payload
+// when serialized for a "type mismatch" or "value mismatch" error message.
+func (f capturedField) MarshalJSON() ([]byte, error) {
+	return json.Marshal(f.PointerToTarget)
 }
 
 // JSONFixtureFile implements HTTPResponseBody by locating the expected JSON
