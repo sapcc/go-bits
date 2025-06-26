@@ -8,6 +8,9 @@ githubWorkflow:
     enabled: true
     coveralls: true
 
+golang:
+  autoupdateableDeps: ^github.com/(?:sapcc|sap-cloud-infrastructure)/
+
 golangciLint:
   createConfig: true
 
