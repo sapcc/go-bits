@@ -8,11 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/httpext"
-	"github.com/sapcc/go-bits/must"
+	"github.com/sapcc/go-bits/internal"
 )
 
 // Target is implemented by types that describe the target object of an audit event.
@@ -79,7 +78,7 @@ func (p Event) ToCADF(observer cadf.Resource) cadf.Event {
 
 	return cadf.Event{
 		TypeURI:   "http://schemas.dmtf.org/cloud/audit/1.0/event",
-		ID:        GenerateUUID(),
+		ID:        internal.GenerateUUID(),
 		EventTime: p.Time.Format("2006-01-02T15:04:05.999999+00:00"),
 		EventType: "activity",
 		Action:    p.Action,
@@ -96,10 +95,4 @@ func (p Event) ToCADF(observer cadf.Resource) cadf.Event {
 		Observer:    observer,
 		RequestPath: p.Request.URL.String(),
 	}
-}
-
-// GenerateUUID generates an UUID based on random numbers (RFC 4122).
-// Failure will result in program termination.
-func GenerateUUID() string {
-	return must.Return(uuid.NewV4()).String()
 }
