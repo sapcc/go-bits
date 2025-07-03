@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"maps"
 	"net/http"
 	"testing"
 
@@ -74,10 +75,7 @@ func TestOverridesAndWraps(t *testing.T) {
 type dummyRoundTripper struct{}
 
 func (dummyRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	hdr := make(http.Header, len(r.Header)+1)
-	for k, v := range r.Header {
-		hdr[k] = v
-	}
+	hdr := maps.Clone(r.Header)
 	hdr.Set("Host", "Dummy RoundTripper")
 
 	return &http.Response{
