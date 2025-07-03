@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -223,9 +224,7 @@ func promhttpNormalizer(inner http.Handler) http.Handler {
 		buf = rx.ReplaceAll(buf, []byte("$1 VARYING"))
 
 		// replay the edited response into the actual ResponseWriter
-		for k, v := range resp.Header {
-			w.Header()[k] = v
-		}
+		maps.Copy(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
 		w.Write(buf) //nolint:errcheck
 	})
