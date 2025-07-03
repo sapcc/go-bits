@@ -72,9 +72,9 @@ func ObfuscatedErrorText(w http.ResponseWriter, err error) bool {
 		return false
 	}
 
-	uuid := must.Return(uuid.NewV4()).String()
+	logUUID := must.Return(uuid.NewV4()).String()
 
-	logg.Error("%s is: %s", uuid, err.Error())
-	http.Error(w, fmt.Sprintf("Internal Server Error (ID = %s)", uuid), http.StatusInternalServerError)
+	logg.Error("%s is: %s", logUUID, err.Error())
+	http.Error(w, fmt.Sprintf("Internal Server Error (ID = %s)", logUUID), http.StatusInternalServerError)
 	return true
 }
