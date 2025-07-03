@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -95,11 +94,8 @@ func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context, cfg jobConfig) 
 	labels := j.Metadata.makeLabels(cfg)
 	task, err := j.DiscoverTask(ctx, labels)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		if cfg.WantsExtraErrorContext {
-			err = fmt.Errorf("could not select task%s for job %q: %w",
-				cfg.PrefilledLabelsAsString(), j.Metadata.ReadableName, err)
-		}
 		j.Metadata.countTask(labels, err)
+		err = j.Metadata.enrichError("select", err, cfg)
 	}
 	return task, labels, err
 }
@@ -108,12 +104,8 @@ func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context, cfg jobConfig) 
 // well as by runSingleThreaded and runMultiThreaded in production.
 func (j *ProducerConsumerJob[T]) consumeOne(ctx context.Context, cfg jobConfig, task T, labels prometheus.Labels) error {
 	err := j.ProcessTask(ctx, task, labels)
-	if err != nil && cfg.WantsExtraErrorContext {
-		err = fmt.Errorf("could not process task%s for job %q: %w",
-			cfg.PrefilledLabelsAsString(), j.Metadata.ReadableName, err)
-	}
 	j.Metadata.countTask(labels, err)
-	return err
+	return j.Metadata.enrichError("process", err, cfg)
 }
 
 // Core behavior of ProcessOne(). This is a separate function because it is reused in runSingleThreaded().
