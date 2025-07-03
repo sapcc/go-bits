@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sapcc/go-bits/internal"
+	"github.com/gofrs/uuid/v5"
+
 	"github.com/sapcc/go-bits/logg"
+	"github.com/sapcc/go-bits/must"
 )
 
 // JSON serializes the given data into an HTTP response body
@@ -70,7 +72,7 @@ func ObfuscatedErrorText(w http.ResponseWriter, err error) bool {
 		return false
 	}
 
-	uuid := internal.GenerateUUID()
+	uuid := must.Return(uuid.NewV4()).String()
 
 	logg.Error("%s is: %s", uuid, err.Error())
 	http.Error(w, fmt.Sprintf("Internal Server Error (ID = %s)", uuid), http.StatusInternalServerError)
