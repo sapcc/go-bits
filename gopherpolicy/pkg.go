@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -210,6 +211,7 @@ type keystoneToken struct {
 	User         keystoneTokenThingInDomain `json:"user"`
 	//NOTE: `.token.application_credential` is a non-standard extension in SAP Converged Cloud.
 	ApplicationCredential keystoneTokenThing `json:"application_credential"`
+	IsAdminProject        bool               `json:"is_admin_project"`
 }
 
 type keystoneTokenThing struct {
@@ -242,6 +244,7 @@ func (t *keystoneToken) ToContext() policy.Context {
 			"tenant_domain_name":          t.ProjectScope.Domain.Name,
 			"application_credential_id":   t.ApplicationCredential.ID,
 			"application_credential_name": t.ApplicationCredential.Name,
+			"is_admin_project":            strconv.FormatBool(t.IsAdminProject),
 			// NOTE: When adding new elements, also adjust the serialization
 			// functions in `serialize.go` as necessary.
 		},

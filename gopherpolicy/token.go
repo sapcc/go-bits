@@ -134,6 +134,10 @@ func (t *Token) ApplicationCredentialID() string {
 	return t.Context.Auth["application_credential_id"]
 }
 
+func (t *Token) IsAdminProject() string {
+	return t.Context.Auth["is_admin_project"]
+}
+
 // AsInitiator implements the audittools.UserInfo interface.
 func (t *Token) AsInitiator(host cadf.Host) cadf.Resource {
 	return cadf.Resource{
