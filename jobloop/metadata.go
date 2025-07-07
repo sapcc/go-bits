@@ -61,31 +61,38 @@ func (m *JobMetadata) setup(registerer prometheus.Registerer) {
 	m.counter.With(labels).Add(0)
 }
 
-// Internal API for job implementations: Fills a fresh label set with default
+// State associated with a task (a single run of a job).
+// The job implementation can put a suitable payload in the type argument slot.
+type taskContext[T any] struct {
+	Payload T
+	Labels  prometheus.Labels
+}
+
+// Internal API for job implementations: Constructs a taskContext with default
 // values for all labels defined for this job's CounterVec.
-func (m *JobMetadata) makeLabels(cfg jobConfig) prometheus.Labels {
+func makeTaskContext[T any](m JobMetadata, cfg jobConfig) taskContext[T] {
 	labels := make(prometheus.Labels, len(m.CounterLabels)+1)
 	for _, label := range m.CounterLabels {
 		labels[label] = "early-db-access"
 	}
 	maps.Copy(labels, cfg.PrefilledLabels)
-	return labels
+	return taskContext[T]{Labels: labels}
 }
 
 // Internal API for job implementations: Counts a finished or failed task.
 // The "task_outcome" label will be set based on whether `err` is nil or not.
-func (m *JobMetadata) countTask(labels prometheus.Labels, err error) {
+func (tc taskContext[T]) countTask(m JobMetadata, err error) {
 	if err == nil {
-		labels[outcomeLabelName] = outcomeValueSuccess
+		tc.Labels[outcomeLabelName] = outcomeValueSuccess
 	} else {
-		labels[outcomeLabelName] = "failure"
+		tc.Labels[outcomeLabelName] = "failure"
 	}
-	m.counter.With(labels).Inc()
+	m.counter.With(tc.Labels).Inc()
 }
 
 // Internal API for job implementations: Enrich errors with additional error context if necessary.
 // The `verb` argument describes which step of the task this error came from.
-func (m *JobMetadata) enrichError(verb string, err error, cfg jobConfig) error {
+func (tc taskContext[T]) enrichError(verb string, err error, m JobMetadata, cfg jobConfig) error {
 	if err == nil || !cfg.WantsExtraErrorContext {
 		return err
 	}

@@ -52,10 +52,10 @@ type cronJobImpl struct {
 func (i cronJobImpl) processOne(ctx context.Context, cfg jobConfig) error {
 	j := i.j
 
-	labels := j.Metadata.makeLabels(cfg)
-	err := j.Task(ctx, labels)
-	j.Metadata.countTask(labels, err)
-	return j.Metadata.enrichError("run", err, cfg)
+	tc := makeTaskContext[struct{}](j.Metadata, cfg)
+	err := j.Task(ctx, tc.Labels)
+	tc.countTask(j.Metadata, err)
+	return tc.enrichError("run", err, j.Metadata, cfg)
 }
 
 // ProcessOne implements the Job interface.

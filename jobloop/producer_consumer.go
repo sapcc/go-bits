@@ -90,33 +90,33 @@ type producerConsumerJobImpl[T any] struct {
 
 // Core producer-side behavior. This is used by ProcessOne in unit tests, as
 // well as by runSingleThreaded and runMultiThreaded in production.
-func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context, cfg jobConfig) (T, prometheus.Labels, error) {
-	labels := j.Metadata.makeLabels(cfg)
-	task, err := j.DiscoverTask(ctx, labels)
+func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context, cfg jobConfig) (tc taskContext[T], err error) {
+	tc = makeTaskContext[T](j.Metadata, cfg)
+	tc.Payload, err = j.DiscoverTask(ctx, tc.Labels)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		j.Metadata.countTask(labels, err)
-		err = j.Metadata.enrichError("select", err, cfg)
+		tc.countTask(j.Metadata, err)
+		err = tc.enrichError("select", err, j.Metadata, cfg)
 	}
-	return task, labels, err
+	return
 }
 
 // Core consumer-side behavior. This is used by ProcessOne in unit tests, as
 // well as by runSingleThreaded and runMultiThreaded in production.
-func (j *ProducerConsumerJob[T]) consumeOne(ctx context.Context, cfg jobConfig, task T, labels prometheus.Labels) error {
-	err := j.ProcessTask(ctx, task, labels)
-	j.Metadata.countTask(labels, err)
-	return j.Metadata.enrichError("process", err, cfg)
+func (j *ProducerConsumerJob[T]) consumeOne(ctx context.Context, cfg jobConfig, tc taskContext[T]) error {
+	err := j.ProcessTask(ctx, tc.Payload, tc.Labels)
+	tc.countTask(j.Metadata, err)
+	return tc.enrichError("process", err, j.Metadata, cfg)
 }
 
 // Core behavior of ProcessOne(). This is a separate function because it is reused in runSingleThreaded().
 func (i producerConsumerJobImpl[T]) processOne(ctx context.Context, cfg jobConfig) error {
 	j := i.j
 
-	task, labels, err := j.produceOne(ctx, cfg)
+	tc, err := j.produceOne(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	return j.consumeOne(ctx, cfg, task, labels)
+	return j.consumeOne(ctx, cfg, tc)
 }
 
 // ProcessOne implements the jobloop.Job interface.
@@ -155,25 +155,20 @@ func (i producerConsumerJobImpl[T]) runSingleThreaded(ctx context.Context, cfg j
 	}
 }
 
-type taskWithLabels[T any] struct {
-	Task   T
-	Labels prometheus.Labels
-}
-
 // Implementation of Run() for `cfg.NumGoroutines > 1`.
 func (i producerConsumerJobImpl[T]) runMultiThreaded(ctx context.Context, cfg jobConfig) {
 	j := i.j
-	ch := make(chan taskWithLabels[T]) // unbuffered!
+	ch := make(chan taskContext[T]) // unbuffered!
 	var wg sync.WaitGroup
 
 	// one goroutine produces tasks
 	wg.Add(1)
-	go func(ch chan<- taskWithLabels[T]) {
+	go func(ch chan<- taskContext[T]) {
 		defer wg.Done()
 		for ctx.Err() == nil { // while ctx has not expired
-			task, labels, err := j.produceOne(ctx, cfg)
+			tc, err := j.produceOne(ctx, cfg)
 			if err == nil {
-				ch <- taskWithLabels[T]{task, labels}
+				ch <- tc
 			} else {
 				logAndSlowDownOnError(err)
 			}
@@ -189,10 +184,10 @@ func (i producerConsumerJobImpl[T]) runMultiThreaded(ctx context.Context, cfg jo
 	// for the polling above.
 	wg.Add(int(cfg.NumGoroutines - 1))
 	for range cfg.NumGoroutines - 1 {
-		go func(ch <-chan taskWithLabels[T]) {
+		go func(ch <-chan taskContext[T]) {
 			defer wg.Done()
 			for item := range ch {
-				err := j.consumeOne(ctx, cfg, item.Task, item.Labels)
+				err := j.consumeOne(ctx, cfg, item)
 				if err != nil {
 					logg.Error(err.Error())
 				}

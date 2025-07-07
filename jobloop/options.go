@@ -11,8 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Option is a configuration option for a Job. Currently, only the number of
-// goroutines can be configured, but more options could be added in the future.
+// Option is a configuration option for a Job.
+//
+// Compared to JobMetadata, which specifies configuration that is inherent to each particular type of job,
+// this facility is used to configure a specific run of a job.
 //
 // This type is an implementation of the Functional Options pattern, see e.g.
 // <https://github.com/tmrts/go-patterns/blob/master/idiom/functional-options.md>
