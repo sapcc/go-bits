@@ -92,7 +92,7 @@ type producerConsumerJobImpl[T any] struct {
 // well as by runSingleThreaded and runMultiThreaded in production.
 func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context, cfg jobConfig) (tc taskContext[T], err error) {
 	tc = makeTaskContext[T](j.Metadata, cfg)
-	tc.Payload, err = j.DiscoverTask(ctx, tc.Labels)
+	tc.Payload, err = j.DiscoverTask(tc.attachToContext(ctx), tc.Labels)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		tc.countTask(j.Metadata, err)
 		err = tc.enrichError("select", err, j.Metadata, cfg)
@@ -103,7 +103,7 @@ func (j *ProducerConsumerJob[T]) produceOne(ctx context.Context, cfg jobConfig) 
 // Core consumer-side behavior. This is used by ProcessOne in unit tests, as
 // well as by runSingleThreaded and runMultiThreaded in production.
 func (j *ProducerConsumerJob[T]) consumeOne(ctx context.Context, cfg jobConfig, tc taskContext[T]) error {
-	err := j.ProcessTask(ctx, tc.Payload, tc.Labels)
+	err := j.ProcessTask(tc.attachToContext(ctx), tc.Payload, tc.Labels)
 	tc.countTask(j.Metadata, err)
 	return tc.enrichError("process", err, j.Metadata, cfg)
 }
