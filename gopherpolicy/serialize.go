@@ -42,6 +42,9 @@ func SerializeCompactContextToJSON(c policy.Context) ([]byte, error) {
 	if appCredID := a["application_credential_id"]; appCredID != "" {
 		s.ApplicationCredential = []string{appCredID, a["application_credential_name"]}
 	}
+	if isAdminProject := a["is_admin_project"]; isAdminProject != "" {
+		s.IsAdminProject = isAdminProject
+	}
 
 	return json.Marshal(s)
 }
@@ -59,6 +62,7 @@ type serializedContext struct {
 	User                  []string `json:"u,omitempty"`
 	UserDomain            []string `json:"ud,omitempty"` // omitted if "d" is present and contains the same value
 	ApplicationCredential []string `json:"ac,omitempty"` // only if token was spawned from an application credential (SAPCC extension)
+	IsAdminProject        string   `json:"ap,omitempty"` // only if token is an admin project token
 
 	Roles []string `json:"r"`
 }
@@ -88,6 +92,7 @@ func DeserializeCompactContextFromJSON(buf []byte) (policy.Context, error) {
 	if err != nil {
 		return policy.Context{}, err
 	}
+	auth["is_admin_project"] = s.IsAdminProject
 
 	// unpack scope, if any
 	hasProjectScope := len(s.Project) > 0

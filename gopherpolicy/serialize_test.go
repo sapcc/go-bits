@@ -138,6 +138,31 @@ func TestSerializeCompactContext(t *testing.T) {
 			},
 			Serialized: `{"v":1,"u":["012","admin"],"ud":["default","Default"],"r":[]}`,
 		},
+		// admin project scope with user from the same domain
+		{
+			Context: policy.Context{
+				Auth: map[string]string{
+					"project_domain_id":   "123",
+					"project_domain_name": "acme",
+					"project_id":          "234",
+					"project_name":        "roadrunner",
+					"tenant_domain_id":    "123",
+					"tenant_domain_name":  "acme",
+					"tenant_id":           "234",
+					"tenant_name":         "roadrunner",
+					"user_domain_id":      "123",
+					"user_domain_name":    "acme",
+					"user_id":             "345",
+					"user_name":           "coyote",
+					"is_admin_project":    "true",
+				},
+				Roles: []string{
+					"admin",
+					"member",
+				},
+			},
+			Serialized: `{"v":1,"p":["234","roadrunner"],"d":["123","acme"],"u":["345","coyote"],"ap":"true","r":["admin","member"]}`,
+		},
 	}
 
 	for _, tc := range testCases {
