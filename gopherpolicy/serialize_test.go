@@ -33,6 +33,7 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_domain_name":    "acme",
 					"user_id":             "345",
 					"user_name":           "coyote",
+					"is_admin_project":    "False",
 				},
 				Roles: []string{
 					"admin",
@@ -59,6 +60,7 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_name":                   "coyote",
 					"application_credential_id":   "456",
 					"application_credential_name": "machine",
+					"is_admin_project":            "False",
 				},
 				Roles: []string{
 					"admin",
@@ -83,6 +85,7 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_domain_name":    "Default",
 					"user_id":             "012",
 					"user_name":           "admin",
+					"is_admin_project":    "False",
 				},
 				Roles: []string{
 					"admin",
@@ -100,6 +103,7 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_domain_name": "acme",
 					"user_id":          "345",
 					"user_name":        "coyote",
+					"is_admin_project": "False",
 				},
 				Roles: []string{
 					"admin",
@@ -118,6 +122,7 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_domain_name": "Default",
 					"user_id":          "012",
 					"user_name":        "admin",
+					"is_admin_project": "False",
 				},
 				Roles: []string{
 					"admin",
@@ -133,6 +138,7 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_domain_name": "Default",
 					"user_id":          "012",
 					"user_name":        "admin",
+					"is_admin_project": "False",
 				},
 				Roles: []string{},
 			},
@@ -154,14 +160,14 @@ func TestSerializeCompactContext(t *testing.T) {
 					"user_domain_name":    "acme",
 					"user_id":             "345",
 					"user_name":           "coyote",
-					"is_admin_project":    "true",
+					"is_admin_project":    "True",
 				},
 				Roles: []string{
 					"admin",
 					"member",
 				},
 			},
-			Serialized: `{"v":1,"p":["234","roadrunner"],"d":["123","acme"],"u":["345","coyote"],"ap":"true","r":["admin","member"]}`,
+			Serialized: `{"v":1,"p":["234","roadrunner"],"d":["123","acme"],"u":["345","coyote"],"ap":true,"r":["admin","member"]}`,
 		},
 	}
 

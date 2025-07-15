@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -245,7 +244,7 @@ func (t *keystoneToken) ToContext() policy.Context {
 			"tenant_domain_name":          t.ProjectScope.Domain.Name,
 			"application_credential_id":   t.ApplicationCredential.ID,
 			"application_credential_name": t.ApplicationCredential.Name,
-			"is_admin_project":            strconv.FormatBool(t.IsAdminProject),
+			"is_admin_project":            formatBoolLikePython(t.IsAdminProject),
 			// NOTE: When adding new elements, also adjust the serialization
 			// functions in `serialize.go` as necessary.
 		},
@@ -261,4 +260,14 @@ func (t *keystoneToken) ToContext() policy.Context {
 	}
 
 	return c
+}
+
+// We are using this instead of strconv.FormatBool() because OpenStack administrators
+// expect to be able to write `is_admin_project:True` instead of `is_admin_project:true`.
+func formatBoolLikePython(value bool) string {
+	if value {
+		return "True"
+	} else {
+		return "False"
+	}
 }
