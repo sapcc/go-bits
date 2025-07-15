@@ -37,12 +37,15 @@ type Token struct {
 	ProviderClient *gophercloud.ProviderClient
 	// When AuthN fails, contains the deferred AuthN error.
 	Err error
-	// If this Token belongs to a Admin Project
-	isAdminProject bool
 
 	// When AuthN succeeds, contains all the information needed to serialize this
 	// token in SerializeTokenForCache.
 	serializable serializableToken
+
+	// WARNING: Do not add new unexported fields here, unless you have a specific plan
+	// how they can survive a serialization roundtrip (both within this package,
+	// through type serializableToken; or outside this package, by reconstructing
+	// a token from the result of DeserializeCompactContextFromJSON()).
 }
 
 // Require checks if the given token has the given permission according to the
@@ -139,7 +142,7 @@ func (t *Token) ApplicationCredentialID() string {
 // IsAdminProject returns whether the token is scoped to the project that is
 // designated for cloud administrators within Keystone (if any).
 func (t *Token) IsAdminProject() bool {
-	return t.isAdminProject
+	return t.Context.Auth["is_admin_project"] == formatBoolLikePython(true)
 }
 
 // AsInitiator implements the audittools.UserInfo interface.

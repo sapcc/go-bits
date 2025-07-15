@@ -166,9 +166,8 @@ func (v *TokenValidator) TokenFromGophercloudResult(result TokenResult) *Token {
 	}
 
 	return &Token{
-		Enforcer:       v.Enforcer,
-		Context:        tokenData.ToContext(),
-		isAdminProject: tokenData.IsAdminProject,
+		Enforcer: v.Enforcer,
+		Context:  tokenData.ToContext(),
 		ProviderClient: &gophercloud.ProviderClient{
 			IdentityBase:     v.IdentityV3.IdentityBase,
 			IdentityEndpoint: v.IdentityV3.IdentityEndpoint,
