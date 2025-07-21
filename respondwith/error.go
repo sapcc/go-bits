@@ -54,9 +54,14 @@ func analyzeError(err error) (message string, status int) {
 // CustomStatus only works when its result is NOT wrapped in another error.
 // When wrapping occurs, only the outermost error gets to decide which response status is sent.
 // This rule prevents sensitive data in the outermost error's message from accidentally leaking through respondwith.ObfuscatedErrorText().
+//
+// CustomStatus panics when called with a nil error or a non-error status (only 400..599 status codes are allowed).
 func CustomStatus(status int, inner error) error {
 	if inner == nil {
 		panic("CustomStatus called with inner == nil")
+	}
+	if status < 400 || status >= 600 {
+		panic("CustomStatus called with a non-error status (only 400..599 are allowed)")
 	}
 	return errorWithCustomStatus{status, inner}
 }
