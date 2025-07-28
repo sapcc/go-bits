@@ -8,14 +8,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/gorilla/mux"
+	. "github.com/majewsky/gg/option"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sapcc/go-api-declarations/liquid"
 
@@ -247,13 +251,28 @@ func (rt *runtime) pollServiceInfo(ctx context.Context, cancelHTTPServer func(),
 func (rt *runtime) setServiceInfo(serviceInfo liquid.ServiceInfo) {
 	rt.ServiceInfoMutex.Lock()
 	defer rt.ServiceInfoMutex.Unlock()
-	rt.ServiceInfo = serviceInfo
+	// Ignore new ServiceInfos if they are functionally identical to the current info
+	if !cmp.Equal(rt.ServiceInfo, serviceInfo, diffOptions()...) {
+		rt.ServiceInfo = serviceInfo
+	}
 }
 
 func (rt *runtime) getServiceInfo() liquid.ServiceInfo {
 	rt.ServiceInfoMutex.RLock()
 	defer rt.ServiceInfoMutex.RUnlock()
 	return rt.ServiceInfo
+}
+
+func diffOptions() []cmp.Option {
+	return []cmp.Option{
+		cmpopts.IgnoreFields(liquid.ServiceInfo{}, "Version"),
+		// This needs one entry for each Option[] type instance that appears in go-api-declarations/liquid.
+		cmpopts.EquateComparable(Option[*big.Int]{}),
+		cmpopts.EquateComparable(Option[liquid.ProjectMetadata]{}),
+		cmpopts.EquateComparable(Option[time.Time]{}),
+		cmpopts.EquateComparable(Option[uint64]{}),
+		cmpopts.EquateComparable(Option[int64]{}),
+	}
 }
 
 // The motivation for limiting the number of concurrent requests is that I want
