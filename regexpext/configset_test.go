@@ -17,9 +17,9 @@ func TestConfigSetPickWithLiterals(t *testing.T) {
 		{Key: "bar", Value: 23},
 	}
 
-	assert.DeepEqual(t, `cs.Pick("foo")`, cs.Pick("foo"), Some(42))
-	assert.DeepEqual(t, `cs.Pick("bar")`, cs.Pick("bar"), Some(23))
-	assert.DeepEqual(t, `cs.Pick("qux")`, cs.Pick("qux"), None[int]())
+	assert.Equal(t, cs.Pick("foo"), Some(42))
+	assert.Equal(t, cs.Pick("bar"), Some(23))
+	assert.Equal(t, cs.Pick("qux"), None[int]())
 }
 
 func TestConfigSetPickWithRegex(t *testing.T) {
@@ -28,10 +28,10 @@ func TestConfigSetPickWithRegex(t *testing.T) {
 		{Key: "bar", Value: 23},
 	}
 
-	assert.DeepEqual(t, `cs.Pick("foo")`, cs.Pick("foo"), Some(42))
-	assert.DeepEqual(t, `cs.Pick("bar")`, cs.Pick("bar"), Some(42)) // first match wins!
-	assert.DeepEqual(t, `cs.Pick("qux")`, cs.Pick("qux"), None[int]())
-	assert.DeepEqual(t, `cs.Pick("foooo")`, cs.Pick("foooo"), None[int]()) // regex matches full string only
+	assert.Equal(t, cs.Pick("foo"), Some(42))
+	assert.Equal(t, cs.Pick("bar"), Some(42)) // first match wins!
+	assert.Equal(t, cs.Pick("qux"), None[int]())
+	assert.Equal(t, cs.Pick("foooo"), None[int]()) // regex matches full string only
 }
 
 func TestConfigSetWithFill(t *testing.T) {
@@ -50,13 +50,13 @@ func TestConfigSetWithFill(t *testing.T) {
 	}
 
 	value := cs.PickAndFill("Jane Doe", fill)
-	assert.DeepEqual(t, `cs.PickAndFill("Jane Doe")`, value, Some(Name{FirstName: "Jane", LastName: "Doe"}))
+	assert.Equal(t, value, Some(Name{FirstName: "Jane", LastName: "Doe"}))
 
 	// expand from the same template again, but with different values (this tests that the template was not modified)
 	value = cs.PickAndFill("John Dorian", fill)
-	assert.DeepEqual(t, `cs.PickAndFill("John Dorian")`, value, Some(Name{FirstName: "John", LastName: "Dorian"}))
+	assert.Equal(t, value, Some(Name{FirstName: "John", LastName: "Dorian"}))
 
 	// unknown capture groups expand to empty strings, same as regexp.ExpandString()
 	value = cs.PickAndFill("Bob", fill)
-	assert.DeepEqual(t, `cs.PickAndFill("Bob")`, value, Some(Name{FirstName: "Bob", LastName: "Mc"}))
+	assert.Equal(t, value, Some(Name{FirstName: "Bob", LastName: "Mc"}))
 }
