@@ -6,7 +6,6 @@
 package osext_test
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -23,52 +22,50 @@ func TestGetenv(t *testing.T) {
 	t.Setenv(KEY, VAL)
 
 	str, err := osext.NeedGetenv(KEY)
-	assert.DeepEqual(t, "result from NeedGetenv", str, VAL)
-	assert.DeepEqual(t, "error from NeedGetenv", err, nil)
+	assert.Equal(t, str, VAL)
+	assert.Equal(t, err, nil)
 
 	str = osext.GetenvOrDefault(KEY, DEFAULT)
-	assert.DeepEqual(t, "result from GetenvOrDefault", str, VAL)
+	assert.Equal(t, str, VAL)
 
 	ok := osext.GetenvBool(KEY)
-	assert.DeepEqual(t, "result from GetenvBool", ok, false) // not a valid boolean literal -> false
+	assert.Equal(t, ok, false) // not a valid boolean literal -> false
 
 	// test with empty value
 	t.Setenv(KEY, "")
 
 	_, err = osext.NeedGetenv(KEY)
-	assert.DeepEqual(t, "error from NeedGetenv", err, error(osext.MissingEnvError{Key: KEY}))
+	assert.Equal(t, err, error(osext.MissingEnvError{Key: KEY}))
 
 	str = osext.GetenvOrDefault(KEY, DEFAULT)
-	assert.DeepEqual(t, "result from GetenvOrDefault", str, DEFAULT)
+	assert.Equal(t, str, DEFAULT)
 
 	ok = osext.GetenvBool(KEY)
-	assert.DeepEqual(t, "result from GetenvBool", ok, false)
+	assert.Equal(t, ok, false)
 
 	// test with null value
 	os.Unsetenv(KEY)
 
 	_, err = osext.NeedGetenv(KEY)
-	assert.DeepEqual(t, "error from NeedGetenv", err, error(osext.MissingEnvError{Key: KEY}))
+	assert.Equal(t, err, error(osext.MissingEnvError{Key: KEY}))
 
 	str = osext.GetenvOrDefault(KEY, DEFAULT)
-	assert.DeepEqual(t, "result from GetenvOrDefault", str, DEFAULT)
+	assert.Equal(t, str, DEFAULT)
 
 	ok = osext.GetenvBool(KEY)
-	assert.DeepEqual(t, "result from GetenvBool", ok, false)
+	assert.Equal(t, ok, false)
 
 	// test GetenvBool with explicitly true-ish values
 	for _, value := range []string{"t", "True", "1"} {
+		t.Logf("testing GetenvBool for %q", value)
 		t.Setenv(KEY, value)
-		ok = osext.GetenvBool(KEY)
-		msg := fmt.Sprintf("result from GetenvBool for %q", value)
-		assert.DeepEqual(t, msg, ok, true)
+		assert.Equal(t, osext.GetenvBool(KEY), true)
 	}
 
 	// test GetenvBool with explicitly false-ish values
 	for _, value := range []string{"f", "False", "0"} {
+		t.Logf("testing GetenvBool for %q", value)
 		t.Setenv(KEY, value)
-		ok = osext.GetenvBool(KEY)
-		msg := fmt.Sprintf("result from GetenvBool for %q", value)
-		assert.DeepEqual(t, msg, ok, false)
+		assert.Equal(t, osext.GetenvBool(KEY), false)
 	}
 }

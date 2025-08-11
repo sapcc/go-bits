@@ -71,31 +71,31 @@ func TestUnmarshalGood(t *testing.T) {
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "td.Text", td.Text, "hello")
+		assert.Equal(t, td.Text, "hello")
 
 		rx, err := td.Plain.Regexp()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "td.Plain", rx.String(), "hel*o")
+		assert.Equal(t, rx.String(), "hel*o")
 
 		rx, err = td.Bounded.Regexp()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "td.Bounded", rx.String(), "^(?:hey?llo)$")
+		assert.Equal(t, rx.String(), "^(?:hey?llo)$")
 
 		// test behavior of shortcut methods
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("hello"), true)
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("helko"), false)
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("--hello--"), true)
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("--hello"), true)
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("hello--"), true)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString("hello"), true)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString("helko"), false)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString("--hello--"), false)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString("--hello"), false)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString("hello--"), false)
+		assert.Equal(t, td.Plain.MatchString("hello"), true)
+		assert.Equal(t, td.Plain.MatchString("helko"), false)
+		assert.Equal(t, td.Plain.MatchString("--hello--"), true)
+		assert.Equal(t, td.Plain.MatchString("--hello"), true)
+		assert.Equal(t, td.Plain.MatchString("hello--"), true)
+		assert.Equal(t, td.Bounded.MatchString("hello"), true)
+		assert.Equal(t, td.Bounded.MatchString("helko"), false)
+		assert.Equal(t, td.Bounded.MatchString("--hello--"), false)
+		assert.Equal(t, td.Bounded.MatchString("--hello"), false)
+		assert.Equal(t, td.Bounded.MatchString("hello--"), false)
 
 		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("hello"), []string{"hello"})
 		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("helko"), []string(nil))
@@ -115,7 +115,7 @@ func TestUnmarshalBad(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected Unmarshal() to fail, but succeeded")
 		}
-		assert.DeepEqual(t, "err.Error()", err.Error(), expectedError)
+		assert.Equal(t, err.Error(), expectedError)
 	}
 }
 
@@ -128,15 +128,15 @@ func TestUnmarshalEmpty(t *testing.T) {
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "td.Text", td.Text, "")
-		assert.DeepEqual(t, "td.Plain", td.Plain, PlainRegexp(""))
-		assert.DeepEqual(t, "td.Bounded", td.Bounded, BoundedRegexp(""))
+		assert.Equal(t, td.Text, "")
+		assert.Equal(t, td.Plain, PlainRegexp(""))
+		assert.Equal(t, td.Bounded, BoundedRegexp(""))
 
 		// test behavior of shortcut methods
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString(""), true)
-		assert.DeepEqual(t, "MatchString result", td.Plain.MatchString("foo"), true)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString(""), true)
-		assert.DeepEqual(t, "MatchString result", td.Bounded.MatchString("foo"), false)
+		assert.Equal(t, td.Plain.MatchString(""), true)
+		assert.Equal(t, td.Plain.MatchString("foo"), true)
+		assert.Equal(t, td.Bounded.MatchString(""), true)
+		assert.Equal(t, td.Bounded.MatchString("foo"), false)
 
 		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch(""), []string{""})
 		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("foo"), []string{""})
@@ -159,7 +159,7 @@ func TestMarshalGood(t *testing.T) {
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "Marshal", string(buf), proto.Pick(testGood))
+		assert.Equal(t, string(buf), proto.Pick(testGood))
 	}
 }
 
@@ -177,7 +177,7 @@ func TestMarshalEmpty(t *testing.T) {
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "Marshal", string(buf), proto.Pick(testEmpty))
+		assert.Equal(t, string(buf), proto.Pick(testEmpty))
 	}
 }
 
@@ -194,7 +194,7 @@ func TestMarshalOmitEmpty(t *testing.T) {
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		assert.DeepEqual(t, "Marshal", string(buf), proto.Pick(testOmitEmpty))
+		assert.Equal(t, string(buf), proto.Pick(testOmitEmpty))
 	}
 }
 
@@ -204,8 +204,9 @@ func TestIsLiteral(t *testing.T) {
 	// regexp.QuoteMeta() escapes them; isLiteral() must agree with this.
 	for codepoint := uint8(32); codepoint < 127; codepoint++ {
 		text := fmt.Sprintf("a%cb", rune(codepoint)) // e.g. "a b", "a*b", etc.
+		t.Logf("testing with %q", text)
+
 		expected := regexp.QuoteMeta(text) == text
-		actual := isLiteral(text)
-		assert.DeepEqual(t, fmt.Sprintf("verdict for %q", text), actual, expected)
+		assert.Equal(t, isLiteral(text), expected)
 	}
 }
