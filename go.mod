@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/hashicorp/vault/api v1.20.0
 	github.com/lib/pq v1.10.9
-	github.com/majewsky/gg v1.1.0
+	github.com/majewsky/gg v1.3.0
 	github.com/prometheus/client_golang v1.23.0
 	github.com/prometheus/common v0.65.0
 	github.com/rabbitmq/amqp091-go v1.10.0
