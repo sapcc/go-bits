@@ -6,7 +6,6 @@ metadata:
 githubWorkflow:
   ci:
     enabled: true
-    coveralls: true
 
 golang:
   autoupdateableDeps: ^github.com/(?:sapcc|sap-cloud-infrastructure)/
