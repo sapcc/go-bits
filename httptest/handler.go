@@ -45,11 +45,11 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // This will catch any protocol-level and marshaling errors that may occur during the request.
 //
 //	var assets []Asset
-//	resp := h.RespondTo(ctx, "GET /v1/assets", httptest.ReceiveJSONInto(&assets))
+//	resp := h.RespondTo(ctx, "GET /v1/assets", httptest.ReceiveJSONInto(&assets)).Response()
 //	Expect(resp).To(HaveHTTPStatus(http.StatusOK))
 //	Expect(assets).To(HaveLen(4))
 //	Expect(assets[2]).To(Equal("example"))
-func (h Handler) RespondTo(ctx context.Context, methodAndPath string, options ...RequestOption) *http.Response {
+func (h Handler) RespondTo(ctx context.Context, methodAndPath string, options ...RequestOption) Response {
 	// NOTE: This function does not have an error return,
 	//       in order to avoid an extra `Expect(err).To(BeNil())` line at every callsite.
 	//
@@ -58,15 +58,8 @@ func (h Handler) RespondTo(ctx context.Context, methodAndPath string, options ..
 	//
 	//       There are also some cases in which this function panics.
 	//       This is reserved for situations where the test code is clearly written incorrectly.
-	//       Marshaling errors could come from a legitimate problem in the business logic, so they do not panic.
-	makeErrorResponse := func(reason string, err error) *http.Response {
-		return &http.Response{
-			Status:     "999 " + reason,
-			StatusCode: 999,
-			Header:     make(http.Header),
-			Body:       io.NopCloser(strings.NewReader(err.Error())),
-		}
-	}
+	//       Marshaling errors could come from a legitimate problem in the business logic,
+	//       so they return a fabricated response using newResponseFromError() instead of panicing.
 
 	// parse methodAndPath
 	method, path, ok := strings.Cut(methodAndPath, " ")
@@ -90,7 +83,7 @@ func (h Handler) RespondTo(ctx context.Context, methodAndPath string, options ..
 		}
 		buf, err := json.Marshal(params.JSONBody)
 		if err != nil {
-			return makeErrorResponse("JSON Marshal Error", err)
+			return newResponseFromError("JSON Marshal Error", err)
 		}
 		reqBody = bytes.NewReader(buf)
 	}
@@ -102,21 +95,19 @@ func (h Handler) RespondTo(ctx context.Context, methodAndPath string, options ..
 	// obtain response
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	resp := rec.Result()
 
 	// parse response body (if requested)
-	if params.JSONTarget != nil && (resp.StatusCode >= 200 && resp.StatusCode <= 299) {
-		err := json.NewDecoder(resp.Body).Decode(params.JSONTarget)
+	if params.JSONTarget != nil && (rec.Code >= 200 && rec.Code <= 299) {
+		err := json.Unmarshal(rec.Body.Bytes(), params.JSONTarget)
 		if err == nil {
-			err = resp.Body.Close()
-			resp.Body = io.NopCloser(bytes.NewReader(nil))
+			rec.Body = bytes.NewBuffer(nil)
 		}
 		if err != nil {
-			return makeErrorResponse("JSON Unmarshal Error", err)
+			return newResponseFromError("JSON Unmarshal Error", err)
 		}
 	}
 
-	return resp
+	return newResponseFromRecording(rec)
 }
 
 // RequestOption controls optional behavior in func Handler.RespondTo().
@@ -185,4 +176,64 @@ func ReceiveJSONInto(target any) RequestOption {
 	return func(params *requestParams) {
 		params.JSONTarget = target
 	}
+}
+
+// Response is the result type of Handler.RespondTo().
+// It provides all components of the generated HTTP response as plain data fields to assert against,
+// as well as convenience methods for complex assertions:
+//
+//	resp := h.RespondTo(ctx, "GET /v1/assets")
+//	assert.Equal(t, resp.Code, http.StatusOK)
+//
+// Alternatively, the Response() method provides a full *http.Response object, which is useful for Gomega matchers
+// (or when matching more obscure parts of the HTTP response like trailers):
+//
+//	resp := h.RespondTo(ctx, "GET /v1/assets").Response()
+//	Expect(resp).To(HaveHTTPStatus(http.StatusOK))
+type Response struct {
+	resp *http.Response
+	body *bytes.Buffer
+}
+
+func newResponseFromRecording(rec *httptest.ResponseRecorder) Response {
+	return Response{rec.Result(), rec.Body}
+}
+
+func newResponseFromError(reason string, err error) Response {
+	body := bytes.NewBufferString(err.Error())
+	resp := &http.Response{
+		Status:     "999 " + reason,
+		StatusCode: 999,
+		Header:     http.Header{"Content-Type": {"text/plain; charset=utf-8"}},
+		Body:       io.NopCloser(body),
+	}
+	return Response{resp, body}
+}
+
+// StatusCode returns the HTTP status code of the response, or 999 for unexpected errors during Handler.RespondTo().
+// It is a shorthand for Response().StatusCode.
+func (r Response) StatusCode() int {
+	return r.Response().StatusCode
+}
+
+// Header returns the HTTP headers of the response.
+// It is a shorthand for Response().Header().
+func (r Response) Header() http.Header {
+	return r.Response().Header
+}
+
+// Body returns the response body, or an empty buffer if there is no response body.
+// It is similar to Response().Body, except that the result is casted to a more useful type and guaranteed to be non-nil.
+// Every call to this function returns a fresh buffer that starts reading at the first byte.
+func (r Response) Body() *bytes.Buffer {
+	if r.body == nil {
+		return bytes.NewBuffer(nil)
+	} else {
+		return bytes.NewBuffer(r.body.Bytes())
+	}
+}
+
+// Response returns a handle to the underlying *http.Response object inside this recorded response.
+func (r Response) Response() *http.Response {
+	return r.resp
 }

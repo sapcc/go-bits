@@ -12,7 +12,6 @@ import (
 
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"
-	"github.com/sapcc/go-bits/must"
 )
 
 // This example handler recognizes the endpoint "POST /reflect",
@@ -44,14 +43,14 @@ func TestRespondTo(t *testing.T) {
 
 	// most basic invocation
 	resp := h.RespondTo(ctx, "POST /reflect")
-	assert.Equal(t, resp.StatusCode, 200)
+	assert.Equal(t, resp.StatusCode(), 200)
 
 	// check WithHeader()
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithHeader("Foo", "bar"),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
-	assert.DeepEqual(t, "Reflected-Foo", resp.Header["Reflected-Foo"], []string{"bar"})
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.DeepEqual(t, "Reflected-Foo", resp.Header()["Reflected-Foo"], []string{"bar"})
 
 	// check WithHeaders()
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -60,47 +59,43 @@ func TestRespondTo(t *testing.T) {
 			"Numbers": {"23", "42"},
 		}),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
-	assert.DeepEqual(t, "Reflected-Foo", resp.Header["Reflected-Foo"], []string{"bar"})
-	assert.DeepEqual(t, "Reflected-Numbers", resp.Header["Reflected-Numbers"], []string{"23", "42"})
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.DeepEqual(t, "Reflected-Foo", resp.Header()["Reflected-Foo"], []string{"bar"})
+	assert.DeepEqual(t, "Reflected-Numbers", resp.Header()["Reflected-Numbers"], []string{"23", "42"})
 
 	// check WithBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader("Hello world")),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
-	assert.Equal(t, resp.Header.Get("Reflected-Content-Type"), "application/octet-stream")
-	buf := must.Return(io.ReadAll(resp.Body))
-	assert.Equal(t, string(buf), "Hello world")
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/octet-stream")
+	assert.Equal(t, resp.Body().String(), "Hello world")
 
 	// check that WithHeader("Content-Type") overrides the default of WithBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithHeader("Content-Type", "text/plain"),
 		httptest.WithBody(strings.NewReader("Hello world")),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
-	assert.Equal(t, resp.Header.Get("Reflected-Content-Type"), "text/plain")
-	buf = must.Return(io.ReadAll(resp.Body))
-	assert.Equal(t, string(buf), "Hello world")
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "text/plain")
+	assert.Equal(t, resp.Body().String(), "Hello world")
 
 	// check WithJSONBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithJSONBody([]bool{true, false, true}),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
-	assert.Equal(t, resp.Header.Get("Reflected-Content-Type"), "application/json; charset=utf-8")
-	buf = must.Return(io.ReadAll(resp.Body))
-	assert.Equal(t, string(buf), `[true,false,true]`)
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/json; charset=utf-8")
+	assert.Equal(t, resp.Body().String(), `[true,false,true]`)
 
 	// check that WithHeader("Content-Type") overrides the default of WithJSONBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithHeader("Content-Type", "application/x-just-bools+json"),
 		httptest.WithJSONBody([]bool{true, false, true}),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
-	assert.Equal(t, resp.Header.Get("Reflected-Content-Type"), "application/x-just-bools+json")
-	buf = must.Return(io.ReadAll(resp.Body))
-	assert.Equal(t, string(buf), `[true,false,true]`)
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/x-just-bools+json")
+	assert.Equal(t, resp.Body().String(), `[true,false,true]`)
 
 	// check ReceiveJSONInto()
 	var output map[string]any
@@ -108,7 +103,7 @@ func TestRespondTo(t *testing.T) {
 		httptest.WithBody(strings.NewReader(`{"foo":"foofoo"}`)),
 		httptest.ReceiveJSONInto(&output),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
+	assert.Equal(t, resp.StatusCode(), 200)
 	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"foo": "foofoo"})
 
 	// check that ReceiveJSONInto() zeroes its target before unmarshaling
@@ -116,17 +111,16 @@ func TestRespondTo(t *testing.T) {
 		httptest.WithBody(strings.NewReader(`{"bar":"barbar"}`)),
 		httptest.ReceiveJSONInto(&output),
 	)
-	assert.Equal(t, resp.StatusCode, 200)
+	assert.Equal(t, resp.StatusCode(), 200)
 	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"bar": "barbar"}) // "foo" member from previous test was removed before unmarshaling
 
 	// check how JSON marshaling errors are reported
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithJSONBody(time.Now), // functions cannot be serialized as JSON
 	)
-	assert.Equal(t, resp.StatusCode, 999)
-	assert.Equal(t, resp.Status, "999 JSON Marshal Error")
-	buf = must.Return(io.ReadAll(resp.Body))
-	assert.Equal(t, string(buf), "json: unsupported type: func() time.Time")
+	assert.Equal(t, resp.StatusCode(), 999)
+	assert.Equal(t, resp.Response().Status, "999 JSON Marshal Error")
+	assert.Equal(t, resp.Body().String(), "json: unsupported type: func() time.Time")
 
 	// check how JSON unmarshaling errors are reported
 	var outputNumber int
@@ -134,8 +128,7 @@ func TestRespondTo(t *testing.T) {
 		httptest.WithBody(strings.NewReader(`"Hello"`)),
 		httptest.ReceiveJSONInto(&outputNumber),
 	)
-	assert.Equal(t, resp.StatusCode, 999)
-	assert.Equal(t, resp.Status, "999 JSON Unmarshal Error")
-	buf = must.Return(io.ReadAll(resp.Body))
-	assert.Equal(t, string(buf), "json: cannot unmarshal string into Go value of type int")
+	assert.Equal(t, resp.StatusCode(), 999)
+	assert.Equal(t, resp.Response().Status, "999 JSON Unmarshal Error")
+	assert.Equal(t, resp.Body().String(), "json: cannot unmarshal string into Go value of type int")
 }
