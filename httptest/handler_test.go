@@ -4,14 +4,20 @@
 package httptest_test
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/majewsky/gg/jsonmatch"
+
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"
+	"github.com/sapcc/go-bits/must"
 )
 
 // This example handler recognizes the endpoint "POST /reflect",
@@ -69,7 +75,7 @@ func TestRespondTo(t *testing.T) {
 	)
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/octet-stream")
-	assert.Equal(t, resp.Body().String(), "Hello world")
+	assert.Equal(t, resp.BodyString(), "Hello world")
 
 	// check that WithHeader("Content-Type") overrides the default of WithBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -78,7 +84,7 @@ func TestRespondTo(t *testing.T) {
 	)
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "text/plain")
-	assert.Equal(t, resp.Body().String(), "Hello world")
+	assert.Equal(t, resp.BodyString(), "Hello world")
 
 	// check WithJSONBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -86,7 +92,7 @@ func TestRespondTo(t *testing.T) {
 	)
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/json; charset=utf-8")
-	assert.Equal(t, resp.Body().String(), `[true,false,true]`)
+	assert.Equal(t, resp.BodyString(), `[true,false,true]`)
 
 	// check that WithHeader("Content-Type") overrides the default of WithJSONBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -95,7 +101,7 @@ func TestRespondTo(t *testing.T) {
 	)
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/x-just-bools+json")
-	assert.Equal(t, resp.Body().String(), `[true,false,true]`)
+	assert.Equal(t, resp.BodyString(), `[true,false,true]`)
 
 	// check ReceiveJSONInto()
 	var output map[string]any
@@ -114,15 +120,15 @@ func TestRespondTo(t *testing.T) {
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"bar": "barbar"}) // "foo" member from previous test was removed before unmarshaling
 
-	// check how JSON marshaling errors are reported
+	// check how WithJSONBody() reports JSON marshaling errors
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithJSONBody(time.Now), // functions cannot be serialized as JSON
 	)
 	assert.Equal(t, resp.StatusCode(), 999)
 	assert.Equal(t, resp.Response().Status, "999 JSON Marshal Error")
-	assert.Equal(t, resp.Body().String(), "json: unsupported type: func() time.Time")
+	assert.Equal(t, resp.BodyString(), "json: unsupported type: func() time.Time")
 
-	// check how JSON unmarshaling errors are reported
+	// check how ReceiveJSONInto() reports JSON unmarshaling errors
 	var outputNumber int
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`"Hello"`)),
@@ -130,5 +136,82 @@ func TestRespondTo(t *testing.T) {
 	)
 	assert.Equal(t, resp.StatusCode(), 999)
 	assert.Equal(t, resp.Response().Status, "999 JSON Unmarshal Error")
-	assert.Equal(t, resp.Body().String(), "json: cannot unmarshal string into Go value of type int")
+	assert.Equal(t, resp.BodyString(), "json: cannot unmarshal string into Go value of type int")
+
+	// check ExpectJSON()
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+	).ExpectJSON(t, http.StatusOK, jsonmatch.Object{
+		"foo": 23,
+		"bar": 42,
+	})
+
+	// check how ExpectJSON() reports an unexpected status code
+	mock := &mockTestingT{}
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+	).ExpectJSON(mock, http.StatusNotFound, jsonmatch.Object{})
+	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
+		`expected HTTP status 404, but got 200 (body was "{\"foo\":23,\"bar\":42}")`,
+	})
+
+	// check how ExpectJSON() reports diffs without Pointer
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+	).ExpectJSON(mock, http.StatusOK, jsonmatch.Scalar(true))
+	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
+		`type mismatch: expected true, but got {"bar":42,"foo":23}`,
+	})
+
+	// check how ExpectJSON() reports diffs with Pointer
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+	).ExpectJSON(mock, http.StatusOK, jsonmatch.Object{
+		"foo": 23,
+		"bar": 45,
+	})
+	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
+		`value mismatch at /bar: expected 45, but got 42`,
+	})
+
+	// check ExpectText()
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectText(t, http.StatusOK, "hello")
+
+	// check how ExpectText() reports an unexpected status code
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectText(mock, http.StatusNotFound, "hello")
+	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
+		`expected HTTP status 404, but got 200 (body was "hello")`,
+	})
+
+	// check how ExpectText() reports an unexpected response body
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectText(mock, http.StatusOK, "world")
+	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
+		`expected "world", but got "hello"`,
+	})
+
+	// check ExpectBodyAsInFixture()
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(bytes.NewReader(must.Return(os.ReadFile("fixtures/example.txt")))),
+	).ExpectBodyAsInFixture(t, http.StatusOK, "fixtures/example.txt")
+}
+
+// A mock for *testing.T.
+type mockTestingT struct {
+	Errors []string
+}
+
+func (t *mockTestingT) Helper() {}
+
+func (t *mockTestingT) Errorf(msg string, args ...any) {
+	t.Errors = append(t.Errors, fmt.Sprintf(msg, args...))
 }

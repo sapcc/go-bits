@@ -14,7 +14,7 @@ import (
 )
 
 // Equal checks if the actual and expected value are equal according to == rules, and t.Errors() otherwise.
-func Equal[V comparable](t *testing.T, actual, expected V) bool {
+func Equal[V comparable](t TestingT, actual, expected V) bool {
 	if actual == expected {
 		return true
 	}
@@ -48,4 +48,11 @@ func DeepEqual[V any](t *testing.T, variable string, actual, expected V) bool {
 	}
 
 	return false
+}
+
+// TestingT is an interface implemented by the *testing.T type.
+// Some tests inside go-bits use this interface to substitute a mock for the real *testing.T type.
+type TestingT interface {
+	Helper()
+	Errorf(msg string, args ...any)
 }
