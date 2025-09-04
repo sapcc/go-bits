@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/httptest"
 )
 
 type producerConsumerEngine struct {
@@ -92,13 +92,9 @@ func (e *producerConsumerEngine) checkAllProcessed(t *testing.T, registry *prome
 		"test_job_runs{task_outcome=\"failure\"} 0\n",
 		"test_job_runs{task_outcome=\"success\"} 10\n",
 	}
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	assert.HTTPRequest{
-		Method:       http.MethodGet,
-		Path:         "/metrics",
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData(strings.Join(expectedMetrics, "")),
-	}.Check(t, handler)
+	h := httptest.NewHandler(promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+	h.RespondTo(t.Context(), "GET /metrics").
+		ExpectText(t, http.StatusOK, strings.Join(expectedMetrics, ""))
 }
 
 func TestSingleThreaded(t *testing.T) {

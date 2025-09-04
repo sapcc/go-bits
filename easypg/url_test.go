@@ -28,7 +28,7 @@ func TestURLFrom(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	expected := "postgres://foouser:foopass@localhost:5432/foodb?application_name=go-bits%40testhostname&sslmode=disable"
-	assert.DeepEqual(t, "URLFrom result with everything included", url.String(), expected)
+	assert.Equal(t, url.String(), expected)
 
 	// check a URL with optional parts omitted
 	url, err = URLFrom(URLParts{
@@ -40,5 +40,5 @@ func TestURLFrom(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	expected = "postgres://foouser@localhost/foodb?application_name=go-bits%40testhostname"
-	assert.DeepEqual(t, "URLFrom result with optional parts omitted", url.String(), expected)
+	assert.Equal(t, url.String(), expected)
 }
