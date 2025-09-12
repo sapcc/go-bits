@@ -8,47 +8,37 @@ import (
 	"testing"
 
 	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/httptest"
 )
 
 func TestValidator(t *testing.T) {
+	ctx := t.Context()
 	v := NewValidator(NewEnforcer(), nil)
 
 	// setup a simple HTTP handler that just outputs status 204, 401 or 403 depending on auth result
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := httptest.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !v.CheckToken(r).Require(w, "api:access") {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
-	})
+	}))
 
 	// the default behavior is permissive
-	assert.HTTPRequest{
-		Method:       http.MethodGet,
-		Path:         "/",
-		ExpectStatus: http.StatusNoContent,
-	}.Check(t, h)
+	resp := h.RespondTo(ctx, "GET /")
+	assert.Equal(t, resp.StatusCode(), http.StatusNoContent)
 
 	// Forbid() on an unrelated rule does not affect the result
 	v.Enforcer.Forbid("api:details")
-	assert.HTTPRequest{
-		Method:       http.MethodGet,
-		Path:         "/",
-		ExpectStatus: http.StatusNoContent,
-	}.Check(t, h)
+	resp = h.RespondTo(ctx, "GET /")
+	assert.Equal(t, resp.StatusCode(), http.StatusNoContent)
 
 	// Forbid() on the relevant rule causes 403 error
 	v.Enforcer.Forbid("api:access")
-	assert.HTTPRequest{
-		Method:       http.MethodGet,
-		Path:         "/",
-		ExpectStatus: http.StatusForbidden,
-	}.Check(t, h)
+	resp = h.RespondTo(ctx, "GET /")
+	assert.Equal(t, resp.StatusCode(), http.StatusForbidden)
 
 	// explicit Allow() reverses an earlier Forbid
 	v.Enforcer.Allow("api:access")
-	assert.HTTPRequest{
-		Method:       http.MethodGet,
-		Path:         "/",
-		ExpectStatus: http.StatusNoContent,
-	}.Check(t, h)
+	resp = h.RespondTo(ctx, "GET /")
+	assert.Equal(t, resp.StatusCode(), http.StatusNoContent)
 }
