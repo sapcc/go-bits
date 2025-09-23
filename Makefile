@@ -6,6 +6,7 @@
 # SPDX-FileCopyrightText: 2024 SAP SE or an SAP affiliate company
 # SPDX-License-Identifier: Apache-2.0
 
+MAKEFLAGS=--warn-undefined-variables
 # /bin/sh is dash on Debian which does not support all features of ash/bash
 # to fix that we use /bin/bash only on Debian to not break Alpine
 ifneq (,$(wildcard /etc/os-release)) # check file existence
@@ -49,11 +50,11 @@ prepare-static-check: FORCE install-golangci-lint install-modernize install-shel
 
 # To add additional flags or values, specify the variable in the environment, e.g. `GO_BUILDFLAGS='-tags experimental' make`.
 # To override the default flags or values, specify the variable on the command line, e.g. `make GO_BUILDFLAGS='-tags experimental'`.
-GO_BUILDFLAGS := $(GO_BUILDFLAGS)
-GO_LDFLAGS := $(GO_LDFLAGS)
-GO_TESTFLAGS := $(GO_TESTFLAGS)
-GO_TESTENV := $(GO_TESTENV)
-GO_BUILDENV := $(GO_BUILDENV)
+GO_BUILDFLAGS +=
+GO_LDFLAGS +=
+GO_TESTFLAGS +=
+GO_TESTENV +=
+GO_BUILDENV +=
 
 # These definitions are overridable, e.g. to provide fixed version/commit values when
 # no .git directory is present or to provide a fixed build date for reproducibility.
@@ -148,7 +149,6 @@ vars: FORCE
 	@printf "BININFO_BUILD_DATE=$(BININFO_BUILD_DATE)\n"
 	@printf "BININFO_COMMIT_HASH=$(BININFO_COMMIT_HASH)\n"
 	@printf "BININFO_VERSION=$(BININFO_VERSION)\n"
-	@printf "GO_BUILDENV=$(GO_BUILDENV)\n"
 	@printf "GO_BUILDFLAGS=$(GO_BUILDFLAGS)\n"
 	@printf "GO_COVERPKGS=$(GO_COVERPKGS)\n"
 	@printf "GO_LDFLAGS=$(GO_LDFLAGS)\n"
