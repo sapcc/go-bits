@@ -11,7 +11,7 @@ import (
 	"log"
 	"maps"
 	"net/http"
-	"net/http/httptest"
+	httptest_std "net/http/httptest"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,42 +23,39 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/httptest"
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/go-bits/respondwith"
 )
 
 func TestHealthCheckAPI(t *testing.T) {
+	ctx := t.Context()
+
 	// setup the healthcheck API with a choice of error value
 	var currentError error
-	h := Compose(
+	h := httptest.NewHandler(Compose(
 		HealthCheckAPI{
 			Check: func() error {
 				return currentError
 			},
 		},
 		WithoutLogging(),
-	)
+	))
 
 	// test succeeding healthcheck
 	currentError = nil
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData("ok\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck").
+		ExpectText(t, http.StatusOK, "ok\n")
 
 	// test failing healthcheck
 	currentError = errors.New("datacenter on fire")
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		ExpectStatus: http.StatusInternalServerError,
-		ExpectBody:   assert.StringData("datacenter on fire\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck").
+		ExpectText(t, http.StatusInternalServerError, "datacenter on fire\n")
 }
 
 func TestLogging(t *testing.T) {
+	ctx := t.Context()
+
 	// setup a buffer to capture the log into
 	var buf bytes.Buffer
 	logg.SetLogger(log.New(&buf, "", 0))
@@ -78,56 +75,41 @@ func TestLogging(t *testing.T) {
 
 	////////////////////////////////////////////////////////////
 	// scenario 1: everything is logged
-	h := Compose(HealthCheckAPI{})
+	h := httptest.NewHandler(Compose(HealthCheckAPI{}))
 
 	// test a minimal request that logs
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData("ok\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck").
+		ExpectText(t, http.StatusOK, "ok\n")
 	expectLog(`REQUEST: 192.0.2.1 - - "GET /healthcheck HTTP/1.1" 200 3 "-" "-" 0.\d{3}s\n`)
 
 	// test a request that logs header values
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		Header:       map[string]string{"User-Agent": "unit-test/1.0", "Referer": "https://example.org/"},
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData("ok\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck",
+		httptest.WithHeader("User-Agent", "unit-test/1.0"),
+		httptest.WithHeader("Referer", "https://example.org/"),
+	).ExpectText(t, http.StatusOK, "ok\n")
 	expectLog(`REQUEST: 192.0.2.1 - - "GET /healthcheck HTTP/1.1" 200 3 "https://example.org/" "unit-test/1.0" 0.\d{3}s\n`)
 
 	////////////////////////////////////////////////////////////
 	// scenario 2: non-error logs are suppressed
 	var currentError error
-	h = Compose(
+	h = httptest.NewHandler(Compose(
 		HealthCheckAPI{
 			SkipRequestLog: true,
 			Check: func() error {
 				return currentError
 			},
 		},
-	)
+	))
 
 	// test a request that has its log suppressed
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData("ok\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck").
+		ExpectText(t, http.StatusOK, "ok\n")
 	expectLog("")
 
 	// test that errors are not suppressed even if the request uses SkipRequestLog()
 	currentError = errors.New("log suppression is on fire")
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		ExpectStatus: http.StatusInternalServerError,
-		ExpectBody:   assert.StringData("log suppression is on fire\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck").
+		ExpectText(t, http.StatusInternalServerError, "log suppression is on fire\n")
 	expectLog(
 		`REQUEST: 192.0.2.1 - - "GET /healthcheck HTTP/1.1" 500 27 "-" "-" 0.\d{3}s\n` +
 			`ERROR: during "GET /healthcheck": log suppression is on fire\n`,
@@ -135,52 +117,42 @@ func TestLogging(t *testing.T) {
 
 	////////////////////////////////////////////////////////////
 	// scenario 3: all logs are suppressed
-	h = Compose(
+	h = httptest.NewHandler(Compose(
 		HealthCheckAPI{
 			Check: func() error {
 				return errors.New("log suppression too strong")
 			},
 		},
 		WithoutLogging(),
-	)
+	))
 
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/healthcheck",
-		ExpectStatus: http.StatusInternalServerError,
-		ExpectBody:   assert.StringData("log suppression too strong\n"),
-	}.Check(t, h)
+	h.RespondTo(ctx, "GET /healthcheck").
+		ExpectText(t, http.StatusInternalServerError, "log suppression too strong\n")
 	expectLog("")
 }
 
 func TestMetrics(t *testing.T) {
+	ctx := t.Context()
 	registry := prometheus.NewPedanticRegistry()
 	testSetRegisterer(registry)
 
-	h := Compose(metricsTestingAPI{})
+	h := httptest.NewHandler(Compose(metricsTestingAPI{}))
 
 	// perform some calls to populate metrics
-	assert.HTTPRequest{
-		Method:       "POST",
-		Path:         "/sleep/0.01/return/50",
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData(strings.Repeat(".", 50)),
-	}.Check(t, h)
-	assert.HTTPRequest{
-		Method:       "POST",
-		Path:         "/sleep/0.15/return/5000",
-		Body:         assert.StringData(strings.Repeat(".", 5000)),
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.StringData(strings.Repeat(".", 5000)),
-	}.Check(t, h)
+	resp := h.RespondTo(ctx, "POST /sleep/0.01/return/50")
+	assert.Equal(t, resp.StatusCode(), http.StatusOK)
+	assert.Equal(t, resp.BodyString(), strings.Repeat(".", 50))
+
+	resp = h.RespondTo(ctx, "POST /sleep/0.15/return/5000",
+		httptest.WithBody(strings.NewReader(strings.Repeat(".", 5000))),
+	)
+	assert.Equal(t, resp.StatusCode(), http.StatusOK)
+	assert.Equal(t, resp.BodyString(), strings.Repeat(".", 5000))
 
 	// collect metrics report
-	assert.HTTPRequest{
-		Method:       "GET",
-		Path:         "/metrics",
-		ExpectStatus: http.StatusOK,
-		ExpectBody:   assert.FixtureFile("fixtures/metrics.prom"),
-	}.Check(t, promhttpNormalizer(promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
+	h = httptest.NewHandler(promhttpNormalizer(promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
+	resp = h.RespondTo(ctx, "GET /metrics")
+	resp.ExpectBodyAsInFixture(t, http.StatusOK, "fixtures/metrics.prom")
 }
 
 type metricsTestingAPI struct{}
@@ -211,7 +183,7 @@ func promhttpNormalizer(inner http.Handler) http.Handler {
 	// does one very specific rewrite for test reproducability.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// slurp the response from `GET /metrics`
-		rec := httptest.NewRecorder()
+		rec := httptest_std.NewRecorder()
 		inner.ServeHTTP(rec, r)
 		resp := rec.Result()
 
