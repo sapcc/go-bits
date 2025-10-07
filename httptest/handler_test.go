@@ -5,7 +5,6 @@ package httptest_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"
+	"github.com/sapcc/go-bits/internal/testutil"
 	"github.com/sapcc/go-bits/must"
 )
 
@@ -45,7 +45,7 @@ var exampleHandler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r
 
 func TestRespondTo(t *testing.T) {
 	h := httptest.NewHandler(exampleHandler)
-	ctx := t.Context() // TODO: use t.Context() in Go 1.24+
+	ctx := t.Context()
 
 	// most basic invocation
 	resp := h.RespondTo(ctx, "POST /reflect")
@@ -147,22 +147,18 @@ func TestRespondTo(t *testing.T) {
 	})
 
 	// check how ExpectJSON() reports an unexpected status code
-	mock := &mockTestingT{}
+	mock := &testutil.MockT{}
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
 	).ExpectJSON(mock, http.StatusNotFound, jsonmatch.Object{})
-	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
-		`expected HTTP status 404, but got 200 (body was "{\"foo\":23,\"bar\":42}")`,
-	})
+	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "{\"foo\":23,\"bar\":42}")`)
 
 	// check how ExpectJSON() reports diffs without Pointer
 	mock.Errors = nil
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
 	).ExpectJSON(mock, http.StatusOK, jsonmatch.Scalar(true))
-	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
-		`type mismatch: expected true, but got {"bar":42,"foo":23}`,
-	})
+	mock.ExpectErrors(t, `type mismatch: expected true, but got {"bar":42,"foo":23}`)
 
 	// check how ExpectJSON() reports diffs with Pointer
 	mock.Errors = nil
@@ -172,9 +168,7 @@ func TestRespondTo(t *testing.T) {
 		"foo": 23,
 		"bar": 45,
 	})
-	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
-		`value mismatch at /bar: expected 45, but got 42`,
-	})
+	mock.ExpectErrors(t, `value mismatch at /bar: expected 45, but got 42`)
 
 	// check ExpectText()
 	h.RespondTo(ctx, "POST /reflect",
@@ -186,32 +180,17 @@ func TestRespondTo(t *testing.T) {
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader("hello")),
 	).ExpectText(mock, http.StatusNotFound, "hello")
-	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
-		`expected HTTP status 404, but got 200 (body was "hello")`,
-	})
+	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
 
 	// check how ExpectText() reports an unexpected response body
 	mock.Errors = nil
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader("hello")),
 	).ExpectText(mock, http.StatusOK, "world")
-	assert.DeepEqual(t, "collected errors", mock.Errors, []string{
-		`expected "world", but got "hello"`,
-	})
+	mock.ExpectErrors(t, `expected "world", but got "hello"`)
 
 	// check ExpectBodyAsInFixture()
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(bytes.NewReader(must.Return(os.ReadFile("fixtures/example.txt")))),
 	).ExpectBodyAsInFixture(t, http.StatusOK, "fixtures/example.txt")
-}
-
-// A mock for *testing.T.
-type mockTestingT struct {
-	Errors []string
-}
-
-func (t *mockTestingT) Helper() {}
-
-func (t *mockTestingT) Errorf(msg string, args ...any) {
-	t.Errors = append(t.Errors, fmt.Sprintf(msg, args...))
 }
