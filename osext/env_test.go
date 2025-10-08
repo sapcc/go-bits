@@ -23,7 +23,7 @@ func TestGetenv(t *testing.T) {
 
 	str, err := osext.NeedGetenv(KEY)
 	assert.Equal(t, str, VAL)
-	assert.Equal(t, err, nil)
+	assert.ErrEqual(t, err, nil)
 
 	str = osext.GetenvOrDefault(KEY, DEFAULT)
 	assert.Equal(t, str, VAL)
@@ -35,7 +35,7 @@ func TestGetenv(t *testing.T) {
 	t.Setenv(KEY, "")
 
 	_, err = osext.NeedGetenv(KEY)
-	assert.Equal(t, err, error(osext.MissingEnvError{Key: KEY}))
+	assert.ErrEqual(t, err, osext.MissingEnvError{Key: KEY})
 
 	str = osext.GetenvOrDefault(KEY, DEFAULT)
 	assert.Equal(t, str, DEFAULT)
@@ -47,7 +47,7 @@ func TestGetenv(t *testing.T) {
 	os.Unsetenv(KEY)
 
 	_, err = osext.NeedGetenv(KEY)
-	assert.Equal(t, err, error(osext.MissingEnvError{Key: KEY}))
+	assert.ErrEqual(t, err, osext.MissingEnvError{Key: KEY})
 
 	str = osext.GetenvOrDefault(KEY, DEFAULT)
 	assert.Equal(t, str, DEFAULT)
