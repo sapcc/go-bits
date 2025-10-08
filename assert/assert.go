@@ -59,16 +59,17 @@ func ErrEqual(t TestingT, actual error, expectedErrorOrMessageOrRegexp any) bool
 			t.Errorf("expected error stack to contain %q, but got no error", expected.Error())
 			return false
 		}
-		if expected == nil {
+		switch {
+		case expected == nil:
 			// defense in depth: this should have been covered by the previous case branch
 			t.Errorf("expected success, but got error: %s", actual.Error())
 			return false
-		}
-		if errors.Is(actual, expected) {
+		case errors.Is(actual, expected):
 			return true
+		default:
+			t.Errorf("expected error stack to contain %q, but got error: %s", expected.Error(), actual.Error())
+			return false
 		}
-		t.Errorf("expected error stack to contain %q, but got error: %s", expected.Error(), actual.Error())
-		return false
 
 	case string:
 		if actual == nil {
@@ -79,15 +80,16 @@ func ErrEqual(t TestingT, actual error, expectedErrorOrMessageOrRegexp any) bool
 			return false
 		}
 		msg := actual.Error()
-		if expected == "" {
+		switch expected {
+		case "":
 			t.Errorf("expected success, but got error: %s", msg)
 			return false
-		}
-		if msg == expected {
+		case msg:
 			return true
+		default:
+			t.Errorf("expected error with message %q, but got error: %s", expected, msg)
+			return false
 		}
-		t.Errorf("expected error with message %q, but got error: %s", expected, msg)
-		return false
 
 	case *regexp.Regexp:
 		if actual == nil {
