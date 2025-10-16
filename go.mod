@@ -1,6 +1,6 @@
 module github.com/sapcc/go-bits
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/databus23/goslo.policy v0.0.0-20250326134918-4afc2c56a903

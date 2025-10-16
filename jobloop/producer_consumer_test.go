@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -98,59 +99,63 @@ func (e *producerConsumerEngine) checkAllProcessed(t *testing.T, registry *prome
 }
 
 func TestSingleThreaded(t *testing.T) {
-	// This test covers the single-threaded (or rather, single-goroutined)
-	// execution model for the ProducerConsumerJob.
-	engine := producerConsumerEngine{}
-	registry := prometheus.NewPedanticRegistry()
-	job := engine.Job(registry)
+	synctest.Test(t, func(t *testing.T) {
+		// This test covers the single-threaded (or rather, single-goroutined)
+		// execution model for the ProducerConsumerJob.
+		engine := producerConsumerEngine{}
+		registry := prometheus.NewPedanticRegistry()
+		job := engine.Job(registry)
 
-	// start the job machinery
-	var wgJobLoop sync.WaitGroup
-	wgJobLoop.Add(1)
-	engine.wgProcessorsReady.Add(10)
-	ctx, cancel := context.WithCancel(t.Context())
-	go func() {
-		defer wgJobLoop.Done()
-		job.Run(ctx)
-	}()
+		// start the job machinery
+		var wgJobLoop sync.WaitGroup
+		wgJobLoop.Add(1)
+		engine.wgProcessorsReady.Add(10)
+		ctx, cancel := context.WithCancel(t.Context())
+		go func() {
+			defer wgJobLoop.Done()
+			job.Run(ctx)
+		}()
 
-	// wait until all tasks have been dispatched
-	engine.wgProcessorsReady.Wait()
-	// instruct job loop to shutdown
-	cancel()
-	wgJobLoop.Wait()
+		// wait until all tasks have been dispatched
+		engine.wgProcessorsReady.Wait()
+		// instruct job loop to shutdown
+		cancel()
+		wgJobLoop.Wait()
 
-	engine.checkAllProcessed(t, registry)
+		engine.checkAllProcessed(t, registry)
+	})
 }
 
 func TestMultiThreaded(t *testing.T) {
-	// This test checks that the queueing in the multi-threaded job loop works as
-	//intended: When there are multiple operations to execute, each operation
-	// gets executed exactly once, without having to wait for earlier tasks to
-	// complete (as long as there are enough workers).
-	engine := producerConsumerEngine{
-		processingBlocker: make(chan struct{}),
-	}
-	registry := prometheus.NewPedanticRegistry()
-	job := engine.Job(registry)
+	synctest.Test(t, func(t *testing.T) {
+		// This test checks that the queueing in the multi-threaded job loop works as
+		//intended: When there are multiple operations to execute, each operation
+		// gets executed exactly once, without having to wait for earlier tasks to
+		// complete (as long as there are enough workers).
+		engine := producerConsumerEngine{
+			processingBlocker: make(chan struct{}),
+		}
+		registry := prometheus.NewPedanticRegistry()
+		job := engine.Job(registry)
 
-	// start the job machinery
-	var wgJobLoop sync.WaitGroup
-	wgJobLoop.Add(1)
-	engine.wgProcessorsReady.Add(10)
-	ctx, cancel := context.WithCancel(t.Context())
-	go func() {
-		defer wgJobLoop.Done()
-		job.Run(ctx, NumGoroutines(11))
-	}()
+		// start the job machinery
+		var wgJobLoop sync.WaitGroup
+		wgJobLoop.Add(1)
+		engine.wgProcessorsReady.Add(10)
+		ctx, cancel := context.WithCancel(t.Context())
+		go func() {
+			defer wgJobLoop.Done()
+			job.Run(ctx, NumGoroutines(11))
+		}()
 
-	// wait until all tasks have been dispatched
-	engine.wgProcessorsReady.Wait()
-	// allow them to proceed all at once
-	close(engine.processingBlocker)
-	// wait until all processing is done
-	cancel()
-	wgJobLoop.Wait()
+		// wait until all tasks have been dispatched
+		engine.wgProcessorsReady.Wait()
+		// allow them to proceed all at once
+		close(engine.processingBlocker)
+		// wait until all processing is done
+		cancel()
+		wgJobLoop.Wait()
 
-	engine.checkAllProcessed(t, registry)
+		engine.checkAllProcessed(t, registry)
+	})
 }
