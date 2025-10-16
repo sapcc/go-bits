@@ -180,14 +180,14 @@ func (m metricsTestingAPI) handleRequest(w http.ResponseWriter, r *http.Request)
 
 func promhttpNormalizer(inner http.Handler) http.Handler {
 	// This middleware first collects a complete `GET /metrics` response, then
-	// does one very specific rewrite for test reproducability.
+	// does one very specific rewrite for test reproducibility.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// slurp the response from `GET /metrics`
 		rec := httptest_std.NewRecorder()
 		inner.ServeHTTP(rec, r)
 		resp := rec.Result()
 
-		// remove the undeterministic values for the `..._seconds_sum` metrics
+		// remove the indeterministic values for the `..._seconds_sum` metrics
 		buf, err := io.ReadAll(resp.Body)
 		if respondwith.ErrorText(w, err) {
 			return

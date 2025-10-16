@@ -75,7 +75,7 @@ func (h Handler) RespondTo(ctx context.Context, methodAndPath string, options ..
 	//       There are also some cases in which this function panics.
 	//       This is reserved for situations where the test code is clearly written incorrectly.
 	//       Marshaling errors could come from a legitimate problem in the business logic,
-	//       so they return a fabricated response using newResponseFromError() instead of panicing.
+	//       so they return a fabricated response using newResponseFromError() instead of panicking.
 
 	// parse methodAndPath
 	method, path, ok := strings.Cut(methodAndPath, " ")

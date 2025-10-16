@@ -20,16 +20,16 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 	rt := http.RoundTripper(orig)
 	wrap := WrapTransport(&rt)
 
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, (*tls.Config)(nil))
+	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, (*tls.Config)(nil))
 
 	wrap.SetInsecureSkipVerify(false)
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, (*tls.Config)(nil)) // check that false -> false is a true no-op
+	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, (*tls.Config)(nil)) // check that false -> false is a true no-op
 
 	wrap.SetInsecureSkipVerify(true)
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test fixture
+	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test fixture
 
 	wrap.SetInsecureSkipVerify(false)
-	assert.DeepEqual(t, "TLSCLientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: false}) //nolint:gosec // test fixture
+	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: false}) //nolint:gosec // test fixture
 }
 
 func TestOverridesAndWraps(t *testing.T) {
