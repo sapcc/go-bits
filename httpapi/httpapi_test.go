@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -132,27 +133,29 @@ func TestLogging(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	ctx := t.Context()
-	registry := prometheus.NewPedanticRegistry()
-	testSetRegisterer(registry)
+	synctest.Test(t, func(t *testing.T) {
+		ctx := t.Context()
+		registry := prometheus.NewPedanticRegistry()
+		testSetRegisterer(registry)
 
-	h := httptest.NewHandler(Compose(metricsTestingAPI{}))
+		h := httptest.NewHandler(Compose(metricsTestingAPI{}))
 
-	// perform some calls to populate metrics
-	resp := h.RespondTo(ctx, "POST /sleep/0.01/return/50")
-	assert.Equal(t, resp.StatusCode(), http.StatusOK)
-	assert.Equal(t, resp.BodyString(), strings.Repeat(".", 50))
+		// perform some calls to populate metrics
+		resp := h.RespondTo(ctx, "POST /sleep/0.01/return/50")
+		assert.Equal(t, resp.StatusCode(), http.StatusOK)
+		assert.Equal(t, resp.BodyString(), strings.Repeat(".", 50))
 
-	resp = h.RespondTo(ctx, "POST /sleep/0.15/return/5000",
-		httptest.WithBody(strings.NewReader(strings.Repeat(".", 5000))),
-	)
-	assert.Equal(t, resp.StatusCode(), http.StatusOK)
-	assert.Equal(t, resp.BodyString(), strings.Repeat(".", 5000))
+		resp = h.RespondTo(ctx, "POST /sleep/0.15/return/5000",
+			httptest.WithBody(strings.NewReader(strings.Repeat(".", 5000))),
+		)
+		assert.Equal(t, resp.StatusCode(), http.StatusOK)
+		assert.Equal(t, resp.BodyString(), strings.Repeat(".", 5000))
 
-	// collect metrics report
-	h = httptest.NewHandler(promhttpNormalizer(promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
-	resp = h.RespondTo(ctx, "GET /metrics")
-	resp.ExpectBodyAsInFixture(t, http.StatusOK, "fixtures/metrics.prom")
+		// collect metrics report
+		h = httptest.NewHandler(promhttpNormalizer(promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
+		resp = h.RespondTo(ctx, "GET /metrics")
+		resp.ExpectBodyAsInFixture(t, http.StatusOK, "fixtures/metrics.prom")
+	})
 }
 
 type metricsTestingAPI struct{}
