@@ -13,14 +13,13 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 
 	"github.com/majewsky/gg/jsonmatch"
 
 	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/internal/testdiff"
 )
 
 // Handler is a wrapper around http.Handler providing convenience methods for use in tests.
@@ -351,20 +350,7 @@ func (r Response) ExpectBodyAsInFixture(t assert.TestingT, statusCode int, fixtu
 		return
 	}
 
-	// write actual body to file to make it easy to copy the computed result over
-	// to the fixture path when a new test is added or an existing one is modified
-	actualPath := fixturePath + ".actual"
-	err := os.WriteFile(actualPath, r.BodyBytes(), 0o666)
-	if err != nil {
-		t.Errorf("%s", err.Error()) // uses t.Errorf() instead of t.Error() to keep type TestingT minimal
-		return
-	}
-
-	cmd := exec.Command("diff", "-u", fixturePath, actualPath)
-	cmd.Stdin = nil
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	err := testdiff.DiffAgainstFixtureFile(fixturePath, r.BodyBytes())
 	if err != nil {
 		t.Errorf("response body does not match with %s: %s", fixturePath, err.Error())
 	}
