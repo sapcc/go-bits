@@ -198,7 +198,7 @@ func testLogFatalWithEmptyErrorSet(errs ErrorSet) {
 			panic(fmt.Sprintf("LogFatalIfError panicked: %v", r))
 		}
 	}()
-	
+
 	// For empty ErrorSet, this should complete without issues
 	if errs.IsEmpty() {
 		// We skip calling LogFatalIfError on non-empty sets as it would exit
@@ -216,7 +216,7 @@ func TestErrorSetIntegration(t *testing.T) {
 	// Add some errors using different methods
 	errs.Add(errors.New("error 1"))
 	errs.Addf("error %d", 2)
-	
+
 	assert.Equal(t, errs.IsEmpty(), false)
 	assert.Equal(t, len(errs), 2)
 
@@ -224,7 +224,7 @@ func TestErrorSetIntegration(t *testing.T) {
 	var moreErrs ErrorSet
 	moreErrs.Add(errors.New("error 3"))
 	moreErrs.Addf("error %d", 4)
-	
+
 	errs.Append(moreErrs)
 	assert.Equal(t, len(errs), 4)
 
@@ -235,7 +235,7 @@ func TestErrorSetIntegration(t *testing.T) {
 	// Test JoinedError and Unwrap
 	joined := errs.JoinedError("; ")
 	assert.Equal(t, joined.Error(), "error 1; error 2; error 3; error 4")
-	
+
 	unwrapped := joined.(interface{ Unwrap() []error }).Unwrap()
 	assert.Equal(t, len(unwrapped), 4)
 }
