@@ -16,23 +16,23 @@ func TestErrorSetAdd(t *testing.T) {
 
 	// Add nil error - should not be added
 	errs.Add(nil)
-	assert.Equal(t, len(errs), 0)
+	assert.Equal(t, 0, len(errs))
 
 	// Add non-nil error
 	err1 := errors.New("error 1")
 	errs.Add(err1)
-	assert.Equal(t, len(errs), 1)
-	assert.Equal(t, errs[0].Error(), "error 1")
+	assert.Equal(t, 1, len(errs))
+	assert.Equal(t, "error 1", errs[0].Error())
 
 	// Add another non-nil error
 	err2 := errors.New("error 2")
 	errs.Add(err2)
-	assert.Equal(t, len(errs), 2)
-	assert.Equal(t, errs[1].Error(), "error 2")
+	assert.Equal(t, 2, len(errs))
+	assert.Equal(t, "error 2", errs[1].Error())
 
 	// Add nil error again - should not be added
 	errs.Add(nil)
-	assert.Equal(t, len(errs), 2)
+	assert.Equal(t, 2, len(errs))
 }
 
 func TestErrorSetAddf(t *testing.T) {
@@ -40,18 +40,18 @@ func TestErrorSetAddf(t *testing.T) {
 
 	// Add formatted error
 	errs.Addf("error with number: %d", 42)
-	assert.Equal(t, len(errs), 1)
-	assert.Equal(t, errs[0].Error(), "error with number: 42")
+	assert.Equal(t, 1, len(errs))
+	assert.Equal(t, "error with number: 42", errs[0].Error())
 
 	// Add another formatted error
 	errs.Addf("error with string: %s", "test")
-	assert.Equal(t, len(errs), 2)
-	assert.Equal(t, errs[1].Error(), "error with string: test")
+	assert.Equal(t, 2, len(errs))
+	assert.Equal(t, "error with string: test", errs[1].Error())
 
 	// Add formatted error without parameters
 	errs.Addf("simple error")
-	assert.Equal(t, len(errs), 3)
-	assert.Equal(t, errs[2].Error(), "simple error")
+	assert.Equal(t, 3, len(errs))
+	assert.Equal(t, "simple error", errs[2].Error())
 }
 
 func TestErrorSetAppend(t *testing.T) {
@@ -65,31 +65,31 @@ func TestErrorSetAppend(t *testing.T) {
 
 	// Append errs2 to errs1
 	errs1.Append(errs2)
-	assert.Equal(t, len(errs1), 4)
-	assert.Equal(t, errs1[0].Error(), "error 1")
-	assert.Equal(t, errs1[1].Error(), "error 2")
-	assert.Equal(t, errs1[2].Error(), "error 3")
-	assert.Equal(t, errs1[3].Error(), "error 4")
+	assert.Equal(t, 4, len(errs1))
+	assert.Equal(t, "error 1", errs1[0].Error())
+	assert.Equal(t, "error 2", errs1[1].Error())
+	assert.Equal(t, "error 3", errs1[2].Error())
+	assert.Equal(t, "error 4", errs1[3].Error())
 
 	// Append empty ErrorSet
 	var errs3 ErrorSet
 	errs1.Append(errs3)
-	assert.Equal(t, len(errs1), 4)
+	assert.Equal(t, 4, len(errs1))
 }
 
 func TestErrorSetIsEmpty(t *testing.T) {
 	var errs ErrorSet
 
 	// Empty ErrorSet
-	assert.Equal(t, errs.IsEmpty(), true)
+	assert.Equal(t, true, errs.IsEmpty())
 
 	// Add an error
 	errs.Add(errors.New("error"))
-	assert.Equal(t, errs.IsEmpty(), false)
+	assert.Equal(t, false, errs.IsEmpty())
 
 	// Create new ErrorSet with errors
 	errs2 := ErrorSet{errors.New("error 1"), errors.New("error 2")}
-	assert.Equal(t, errs2.IsEmpty(), false)
+	assert.Equal(t, false, errs2.IsEmpty())
 }
 
 func TestErrorSetJoin(t *testing.T) {
@@ -97,26 +97,26 @@ func TestErrorSetJoin(t *testing.T) {
 
 	// Empty ErrorSet
 	result := errs.Join(", ")
-	assert.Equal(t, result, "")
+	assert.Equal(t, "", result)
 
 	// Single error
 	errs.Add(errors.New("error 1"))
 	result = errs.Join(", ")
-	assert.Equal(t, result, "error 1")
+	assert.Equal(t, "error 1", result)
 
 	// Multiple errors with comma separator
 	errs.Add(errors.New("error 2"))
 	errs.Add(errors.New("error 3"))
 	result = errs.Join(", ")
-	assert.Equal(t, result, "error 1, error 2, error 3")
+	assert.Equal(t, "error 1, error 2, error 3", result)
 
 	// Multiple errors with different separator
 	result = errs.Join(" | ")
-	assert.Equal(t, result, "error 1 | error 2 | error 3")
+	assert.Equal(t, "error 1 | error 2 | error 3", result)
 
 	// Multiple errors with newline separator
 	result = errs.Join("\n")
-	assert.Equal(t, result, "error 1\nerror 2\nerror 3")
+	assert.Equal(t, "error 1\nerror 2\nerror 3", result)
 }
 
 func TestErrorSetJoinedError(t *testing.T) {
@@ -124,18 +124,18 @@ func TestErrorSetJoinedError(t *testing.T) {
 
 	// Empty ErrorSet
 	joined := errs.JoinedError(", ")
-	assert.Equal(t, joined.Error(), "")
+	assert.Equal(t, "", joined.Error())
 
 	// Single error
 	errs.Add(errors.New("error 1"))
 	joined = errs.JoinedError(", ")
-	assert.Equal(t, joined.Error(), "error 1")
+	assert.Equal(t, "error 1", joined.Error())
 
 	// Multiple errors
 	errs.Add(errors.New("error 2"))
 	errs.Add(errors.New("error 3"))
 	joined = errs.JoinedError("; ")
-	assert.Equal(t, joined.Error(), "error 1; error 2; error 3")
+	assert.Equal(t, "error 1; error 2; error 3", joined.Error())
 }
 
 func TestJoinedErrorError(t *testing.T) {
@@ -144,14 +144,14 @@ func TestJoinedErrorError(t *testing.T) {
 		errs:      []error{errors.New("error 1"), errors.New("error 2")},
 		separator: " - ",
 	}
-	assert.Equal(t, je.Error(), "error 1 - error 2")
+	assert.Equal(t, "error 1 - error 2", je.Error())
 
 	// Empty error list
 	je2 := joinedError{
 		errs:      []error{},
 		separator: ", ",
 	}
-	assert.Equal(t, je2.Error(), "")
+	assert.Equal(t, "", je2.Error())
 }
 
 func TestJoinedErrorUnwrap(t *testing.T) {
@@ -168,16 +168,16 @@ func TestJoinedErrorUnwrap(t *testing.T) {
 
 	// Unwrap should return the original errors
 	unwrapped := joined.(interface{ Unwrap() []error }).Unwrap()
-	assert.Equal(t, len(unwrapped), 3)
-	assert.Equal(t, unwrapped[0], err1)
-	assert.Equal(t, unwrapped[1], err2)
-	assert.Equal(t, unwrapped[2], err3)
+	assert.Equal(t, 3, len(unwrapped))
+	assert.Equal(t, err1, unwrapped[0])
+	assert.Equal(t, err2, unwrapped[1])
+	assert.Equal(t, err3, unwrapped[2])
 
 	// Test with errors.Is and errors.As
-	assert.Equal(t, errors.Is(joined, err1), true)
-	assert.Equal(t, errors.Is(joined, err2), true)
-	assert.Equal(t, errors.Is(joined, err3), true)
-	assert.Equal(t, errors.Is(joined, errors.New("different error")), false)
+	assert.Equal(t, true, errors.Is(joined, err1))
+	assert.Equal(t, true, errors.Is(joined, err2))
+	assert.Equal(t, true, errors.Is(joined, err3))
+	assert.Equal(t, false, errors.Is(joined, errors.New("different error")))
 }
 
 func TestErrorSetLogFatalIfError(t *testing.T) {
@@ -211,14 +211,14 @@ func TestErrorSetIntegration(t *testing.T) {
 	var errs ErrorSet
 
 	// Start empty
-	assert.Equal(t, errs.IsEmpty(), true)
+	assert.Equal(t, true, errs.IsEmpty())
 
 	// Add some errors using different methods
 	errs.Add(errors.New("error 1"))
 	errs.Addf("error %d", 2)
 
-	assert.Equal(t, errs.IsEmpty(), false)
-	assert.Equal(t, len(errs), 2)
+	assert.Equal(t, false, errs.IsEmpty())
+	assert.Equal(t, 2, len(errs))
 
 	// Create another ErrorSet and append
 	var moreErrs ErrorSet
@@ -226,16 +226,16 @@ func TestErrorSetIntegration(t *testing.T) {
 	moreErrs.Addf("error %d", 4)
 
 	errs.Append(moreErrs)
-	assert.Equal(t, len(errs), 4)
+	assert.Equal(t, 4, len(errs))
 
 	// Test Join
 	result := errs.Join(" | ")
-	assert.Equal(t, result, "error 1 | error 2 | error 3 | error 4")
+	assert.Equal(t, "error 1 | error 2 | error 3 | error 4", result)
 
 	// Test JoinedError and Unwrap
 	joined := errs.JoinedError("; ")
-	assert.Equal(t, joined.Error(), "error 1; error 2; error 3; error 4")
+	assert.Equal(t, "error 1; error 2; error 3; error 4", joined.Error())
 
 	unwrapped := joined.(interface{ Unwrap() []error }).Unwrap()
-	assert.Equal(t, len(unwrapped), 4)
+	assert.Equal(t, 4, len(unwrapped))
 }
