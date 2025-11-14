@@ -180,10 +180,10 @@ func TestErrorSetLogFatalIfError(t *testing.T) {
 	// on empty ErrorSet. In a real scenario, this would not call os.Exit.
 	// Note: We cannot fully test LogFatalIfError as it calls os.Exit(1)
 	// For an empty ErrorSet, it should complete without exiting
-	testLogFatalWithEmptyErrorSet(emptyErrs)
+	helperLogFatalIfErrorWithEmptySet(emptyErrs)
 }
 
-func testLogFatalWithEmptyErrorSet(errs ErrorSet) {
+func helperLogFatalIfErrorWithEmptySet(errs ErrorSet) {
 	// This function is a helper to test that LogFatalIfError doesn't panic
 	// on empty ErrorSet. We cannot test the actual exit behavior.
 	defer func() {
