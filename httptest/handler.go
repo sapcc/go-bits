@@ -311,8 +311,7 @@ func (r Response) Response() *http.Response {
 //	assert.Equal(resp.StatusCode(), http.StatusNoContent)
 func (r Response) ExpectJSON(t assert.TestingT, statusCode int, expected jsonmatch.Diffable) {
 	t.Helper()
-	if r.resp.StatusCode != statusCode {
-		t.Errorf("expected HTTP status %d, but got %d (body was %q)", statusCode, r.resp.StatusCode, r.BodyString())
+	if !r.ExpectStatus(t, statusCode) {
 		return
 	}
 	for _, diff := range expected.DiffAgainst(r.BodyBytes()) {
@@ -324,14 +323,25 @@ func (r Response) ExpectJSON(t assert.TestingT, statusCode int, expected jsonmat
 	}
 }
 
+// ExpectStatus asserts that the status code is equal to the provided value.
+// It returns whether the assertion succeeded.
+func (r Response) ExpectStatus(t assert.TestingT, statusCode int) bool {
+	t.Helper()
+	if r.resp.StatusCode == statusCode {
+		return true
+	} else {
+		t.Errorf("expected HTTP status %d, but got %d (body was %q)", statusCode, r.resp.StatusCode, r.BodyString())
+		return false
+	}
+}
+
 // ExpectText asserts that:
 //
 //   - the status code is equal to the provided value, and
 //   - the response body is a valid UTF-8 string matching the provided expected value.
 func (r Response) ExpectText(t assert.TestingT, statusCode int, expectedBody string) {
 	t.Helper()
-	if r.resp.StatusCode != statusCode {
-		t.Errorf("expected HTTP status %d, but got %d (body was %q)", statusCode, r.resp.StatusCode, r.BodyString())
+	if !r.ExpectStatus(t, statusCode) {
 		return
 	}
 	assert.Equal(t, r.BodyString(), expectedBody)
@@ -345,8 +355,7 @@ func (r Response) ExpectText(t assert.TestingT, statusCode int, expectedBody str
 // When this function is executed, the actual response body will be written into `fixturePath + ".actual"` as a side effect.
 func (r Response) ExpectBodyAsInFixture(t assert.TestingT, statusCode int, fixturePath string) {
 	t.Helper()
-	if r.resp.StatusCode != statusCode {
-		t.Errorf("expected HTTP status %d, but got %d (body was %q)", statusCode, r.resp.StatusCode, r.BodyString())
+	if !r.ExpectStatus(t, statusCode) {
 		return
 	}
 

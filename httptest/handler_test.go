@@ -170,6 +170,18 @@ func TestRespondTo(t *testing.T) {
 	})
 	mock.ExpectErrors(t, `value mismatch at /bar: expected 45, but got 42`)
 
+	// check ExpectStatus()
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectStatus(t, http.StatusOK)
+
+	// check how ExpectStatus() reports an unexpected status code
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectStatus(mock, http.StatusNotFound)
+	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
+
 	// check ExpectText()
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader("hello")),
