@@ -34,6 +34,7 @@ reusability. Feel free to add to this.
 * [respondwith](./respondwith) contains some helper functions for generating responses in HTTP handlers.
 * [secrets](./secrets) provides convenience functions for working with auth credentials.
 * [sqlext](./sqlext) contains helper functions for SQL queries that are not specific to PostgreSQL.
+* [syncext](./syncext) contains extensions to the standard library package "sync", currently only a simple semaphore implementation.
 * [vault](./vault) contains helper functions to work with HashiCorp Vault.
 
 ## Tools
