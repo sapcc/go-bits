@@ -16,7 +16,8 @@ import (
 //
 // Thread safety requirements vary by implementation - see specific implementation documentation.
 type BackingStore interface {
-	// Init initializes the backing store with the given Prometheus registry.
+	// Init initializes the backing store.
+	// If the implementation wants to define its own Prometheus metrics, it shall use the provided registry.
 	Init(prometheus.Registerer) error
 
 	// Write persists an event to the store.
