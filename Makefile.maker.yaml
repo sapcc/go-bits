@@ -27,3 +27,9 @@ reuse:
       - tools/release-info/go.mod
       SPDX-FileCopyrightText: SAP SE or an SAP affiliate company
       SPDX-License-Identifier: Apache-2.0
+
+typos:
+  extendWords:
+    hel: "hel" # used in examples and tests
+    fo: "fo"   # used in examples and tests
+    Hashi: "Hashi" # used in HashiCorp

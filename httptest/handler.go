@@ -192,7 +192,7 @@ func WithJSONBody(payload any) RequestOption {
 // e.g. typos in field names:
 //
 //	type Asset struct {
-//		Name string `json:"naem"` // the test above does not catch this typo
+//		Name string `json:"name"` // the test above does not catch this typo
 //		// ...
 //	}
 //
