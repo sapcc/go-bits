@@ -33,3 +33,4 @@ typos:
     hel: "hel" # used in examples and tests
     fo: "fo"   # used in examples and tests
     Hashi: "Hashi" # used in HashiCorp
+    naem: "naem" # intentional typo of "name" in example

@@ -6,6 +6,7 @@
 Hashi = "Hashi"
 fo = "fo"
 hel = "hel"
+naem = "naem"
 
 [files]
 extend-exclude = [
