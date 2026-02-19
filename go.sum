@@ -148,8 +148,8 @@ github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjR
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
 github.com/ryanuber/go-glob v1.0.0 h1:iQh3xXAumdQ+4Ufa5b25cRpC5TYKlno6hsv6Cb3pkBk=
 github.com/ryanuber/go-glob v1.0.0/go.mod h1:807d1WSdnB0XRJzKNil9Om6lcp/3a0v4qIHxIXzX/Yc=
-github.com/sapcc/go-api-declarations v1.18.0 h1:I73wuBKJEAeAI7nYuB4tHY9n9pydj5mgM7Zn+9fryAA=
-github.com/sapcc/go-api-declarations v1.18.0/go.mod h1:N2klk2oDNa1lsS6gUBnCDJedHy/c2vmwJ1sryckRW40=
+github.com/sapcc/go-api-declarations v1.19.0 h1:AdCHBhoDGC1REMJF6Rc/XLIcf4qMqjUXs5WLq83HImM=
+github.com/sapcc/go-api-declarations v1.19.0/go.mod h1:eiRrXXUeQS5C/1kKn8/KMjk0Y0goUzgDQswj30rH0Zc=
 github.com/sergi/go-diff v1.4.0 h1:n/SP9D5ad1fORl+llWyN+D6qoUETXNZARKjyY2/KVCw=
 github.com/sergi/go-diff v1.4.0/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
