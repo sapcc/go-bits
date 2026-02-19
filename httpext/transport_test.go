@@ -29,7 +29,7 @@ func TestSetInsecureSkipVerify(t *testing.T) {
 	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: true}) //nolint:gosec // test fixture
 
 	wrap.SetInsecureSkipVerify(false)
-	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: false}) //nolint:gosec // test fixture
+	assert.DeepEqual(t, "TLSClientConfig", orig.TLSClientConfig, &tls.Config{InsecureSkipVerify: false})
 }
 
 func TestOverridesAndWraps(t *testing.T) {

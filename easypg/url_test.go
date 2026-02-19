@@ -27,7 +27,7 @@ func TestURLFrom(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	expected := "postgres://foouser:foopass@localhost:5432/foodb?application_name=go-bits%40testhostname&sslmode=disable"
+	expected := "postgres://foouser:foopass@localhost:5432/foodb?application_name=go-bits%40testhostname&sslmode=disable" //nolint:gosec // test fixture
 	assert.Equal(t, url.String(), expected)
 
 	// check a URL with optional parts omitted
