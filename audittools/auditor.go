@@ -17,16 +17,26 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/internal"
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/go-bits/osext"
+)
+
+const (
+	// eventBufferSize is the maximum number of events that can be buffered in memory
+	// when the RabbitMQ connection is unavailable and the backing store is full or unavailable.
+	// 20 events provides enough buffering for transient spikes without excessive memory usage.
+	// When this limit is reached, Record() will block to apply backpressure and prevent data loss.
+	eventBufferSize = 20
 )
 
 // Auditor is a high-level interface for audit event acceptors.
@@ -51,6 +61,7 @@ type AuditorOpts struct {
 	//   - "${PREFIX}_USERNAME" (defaults to "guest")
 	//   - "${PREFIX}_PASSWORD" (defaults to "guest")
 	//   - "${PREFIX}_QUEUE_NAME" (required)
+	//   - "${PREFIX}_BACKING_STORE" (optional, JSON configuration for backing store)
 	EnvPrefix string
 
 	// Required if EnvPrefix is empty, ignored otherwise.
@@ -63,43 +74,83 @@ type AuditorOpts struct {
 	//   - "audittools_successful_submissions" (counter, no labels)
 	//   - "audittools_failed_submissions" (counter, no labels)
 	Registry prometheus.Registerer
+
+	// Optional. If given, this BackingStore instance will be used directly.
+	// Otherwise, a backing store will be created from BackingStoreFactories based on
+	// the JSON configuration in environment variable "${PREFIX}_BACKING_STORE".
+	BackingStore BackingStore
+
+	// Optional. Map of backing store type IDs to factory functions.
+	// Enables per-auditor backing store configuration through environment variables.
+	// Applications can register custom implementations alongside built-in types.
+	//
+	// Example usage:
+	//   auditor, err := NewAuditor(ctx, AuditorOpts{
+	//       EnvPrefix: "MYAPP_AUDIT_RABBITMQ",
+	//       BackingStoreFactories: map[string]BackingStoreFactory{
+	//           "file":   NewFileBackingStore,
+	//           "memory": NewInMemoryBackingStore,
+	//           "sql":    SQLBackingStoreFactoryWithDB(db),
+	//       },
+	//   })
+	BackingStoreFactories map[string]BackingStoreFactory
 }
 
 func (opts AuditorOpts) getConnectionOptions() (rabbitURL url.URL, queueName string, err error) {
-	// option 1: passed explicitly
 	if opts.EnvPrefix == "" {
-		if opts.ConnectionURL == "" {
-			return url.URL{}, "", errors.New("missing required value: AuditorOpts.ConnectionURL")
-		}
-		if opts.QueueName == "" {
-			return url.URL{}, "", errors.New("missing required value: AuditorOpts.QueueName")
-		}
-		rabbitURL, err := url.Parse(opts.ConnectionURL)
-		if err != nil {
-			return url.URL{}, "", fmt.Errorf("while parsing AuditorOpts.ConnectionURL (%q): %w", opts.ConnectionURL, err)
-		}
-		return *rabbitURL, opts.QueueName, nil
+		return opts.getExplicitConnectionOptions()
+	}
+	return opts.getEnvConnectionOptions()
+}
+
+func (opts AuditorOpts) getExplicitConnectionOptions() (url.URL, string, error) {
+	if opts.ConnectionURL == "" {
+		return url.URL{}, "", errors.New("missing required value: AuditorOpts.ConnectionURL")
+	}
+	if opts.QueueName == "" {
+		return url.URL{}, "", errors.New("missing required value: AuditorOpts.QueueName")
 	}
 
-	// option 2: passed via environment variables
-	queueName, err = osext.NeedGetenv(opts.EnvPrefix + "_QUEUE_NAME")
+	rabbitURL, err := url.Parse(opts.ConnectionURL)
+	if err != nil {
+		return url.URL{}, "", fmt.Errorf("while parsing AuditorOpts.ConnectionURL (%q): %w", opts.ConnectionURL, err)
+	}
+
+	return *rabbitURL, opts.QueueName, nil
+}
+
+func (opts AuditorOpts) getEnvConnectionOptions() (url.URL, string, error) {
+	queueName, err := osext.NeedGetenv(opts.EnvPrefix + "_QUEUE_NAME")
 	if err != nil {
 		return url.URL{}, "", err
 	}
+
 	hostname := osext.GetenvOrDefault(opts.EnvPrefix+"_HOSTNAME", "localhost")
-	port, err := strconv.Atoi(osext.GetenvOrDefault(opts.EnvPrefix+"_PORT", "5672"))
+	port, err := opts.parsePort()
 	if err != nil {
-		return url.URL{}, "", fmt.Errorf("invalid value for %s_PORT: %w", opts.EnvPrefix, err)
+		return url.URL{}, "", err
 	}
+
 	username := osext.GetenvOrDefault(opts.EnvPrefix+"_USERNAME", "guest")
-	pass := osext.GetenvOrDefault(opts.EnvPrefix+"_PASSWORD", "guest")
-	rabbitURL = url.URL{
+	password := osext.GetenvOrDefault(opts.EnvPrefix+"_PASSWORD", "guest")
+
+	rabbitURL := url.URL{
 		Scheme: "amqp",
 		Host:   net.JoinHostPort(hostname, strconv.Itoa(port)),
-		User:   url.UserPassword(username, pass),
+		User:   url.UserPassword(username, password),
 		Path:   "/",
 	}
+
 	return rabbitURL, queueName, nil
+}
+
+func (opts AuditorOpts) parsePort() (int, error) {
+	portStr := osext.GetenvOrDefault(opts.EnvPrefix+"_PORT", "5672")
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s_PORT: %w", opts.EnvPrefix, err)
+	}
+	return port, nil
 }
 
 type standardAuditor struct {
@@ -109,52 +160,112 @@ type standardAuditor struct {
 
 // NewAuditor builds an Auditor connected to a RabbitMQ instance, using the provided configuration.
 func NewAuditor(ctx context.Context, opts AuditorOpts) (Auditor, error) {
-	// validate provided options (EnvPrefix, ConnectionURL and QueueName are checked later in getConnectionOptions())
-	if opts.Observer.TypeURI == "" {
-		return nil, errors.New("missing required value: AuditorOpts.Observer.TypeURI")
-	}
-	if opts.Observer.Name == "" {
-		return nil, errors.New("missing required value: AuditorOpts.Observer.Name")
-	}
-	if opts.Observer.ID == "" {
-		return nil, errors.New("missing required value: AuditorOpts.Observer.ID")
+	if err := opts.validateObserver(); err != nil {
+		return nil, err
 	}
 
-	// register Prometheus metrics
-	successCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "audittools_successful_submissions",
-		Help: "Counter for successful audit event submissions to the Hermes RabbitMQ server.",
-	})
-	failureCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "audittools_failed_submissions",
-		Help: "Counter for failed (but retryable) audit event submissions to the Hermes RabbitMQ server.",
-	})
-	successCounter.Add(0)
-	failureCounter.Add(0)
-	if opts.Registry == nil {
-		prometheus.MustRegister(successCounter)
-		prometheus.MustRegister(failureCounter)
-	} else {
-		opts.Registry.MustRegister(successCounter)
-		opts.Registry.MustRegister(failureCounter)
-	}
+	successCounter, failureCounter := createAndRegisterMetrics(opts.Registry)
 
-	// spawn event delivery goroutine
 	rabbitURL, queueName, err := opts.getConnectionOptions()
 	if err != nil {
 		return nil, err
 	}
-	eventChan := make(chan cadf.Event, 20)
+
+	backingStore, err := opts.createBackingStore()
+	if err != nil {
+		return nil, err
+	}
+
+	eventChan := make(chan cadf.Event, eventBufferSize)
 	go auditTrail{
 		EventSink:           eventChan,
 		OnSuccessfulPublish: func() { successCounter.Inc() },
 		OnFailedPublish:     func() { failureCounter.Inc() },
+		BackingStore:        backingStore,
 	}.Commit(ctx, rabbitURL, queueName)
 
 	return &standardAuditor{
 		Observer:  opts.Observer,
 		EventSink: eventChan,
 	}, nil
+}
+
+func (opts AuditorOpts) validateObserver() error {
+	if opts.Observer.TypeURI == "" {
+		return errors.New("missing required value: AuditorOpts.Observer.TypeURI")
+	}
+	if opts.Observer.Name == "" {
+		return errors.New("missing required value: AuditorOpts.Observer.Name")
+	}
+	if opts.Observer.ID == "" {
+		return errors.New("missing required value: AuditorOpts.Observer.ID")
+	}
+	return nil
+}
+
+func createAndRegisterMetrics(registry prometheus.Registerer) (success, failure prometheus.Counter) {
+	success = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "audittools_successful_submissions",
+		Help: "Counter for successful audit event submissions to the Hermes RabbitMQ server.",
+	})
+	failure = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "audittools_failed_submissions",
+		Help: "Counter for failed (but retryable) audit event submissions to the Hermes RabbitMQ server.",
+	})
+
+	success.Add(0)
+	failure.Add(0)
+
+	if registry == nil {
+		prometheus.MustRegister(success, failure)
+	} else {
+		registry.MustRegister(success, failure)
+	}
+
+	return success, failure
+}
+
+func (opts AuditorOpts) createBackingStore() (BackingStore, error) {
+	if opts.BackingStore != nil {
+		return opts.BackingStore, nil
+	}
+
+	configJSON := ""
+	if opts.EnvPrefix != "" {
+		configJSON = os.Getenv(opts.EnvPrefix + "_BACKING_STORE")
+	}
+
+	// Default to in-memory store for zero-configuration operation during transient RabbitMQ outages.
+	if configJSON == "" {
+		configJSON = `{"type":"memory","params":{"max_events":1000}}`
+	}
+
+	var cfg struct {
+		Type   string          `json:"type"`
+		Params json.RawMessage `json:"params"`
+	}
+	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
+		return nil, fmt.Errorf("audittools: invalid backing store config: %w", err)
+	}
+
+	if len(cfg.Params) == 0 {
+		cfg.Params = json.RawMessage("{}")
+	}
+
+	if opts.BackingStoreFactories == nil {
+		return nil, errors.New("audittools: no backing store factories provided and no BackingStore instance given")
+	}
+
+	factory, ok := opts.BackingStoreFactories[cfg.Type]
+	if !ok {
+		availableTypes := make([]string, 0, len(opts.BackingStoreFactories))
+		for k := range opts.BackingStoreFactories {
+			availableTypes = append(availableTypes, k)
+		}
+		return nil, fmt.Errorf("audittools: unknown backing store type %q (available: %v)", cfg.Type, availableTypes)
+	}
+
+	return factory(cfg.Params, opts)
 }
 
 // Record implements the Auditor interface.
