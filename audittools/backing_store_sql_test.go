@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	_ "github.com/lib/pq"
@@ -211,7 +212,9 @@ func newTestSQLBackingStore(t *testing.T, db *sql.DB, opts sqlBackingStoreOpts) 
 
 	if opts.TableName == "" {
 		// Unique table name per test enables parallel test execution without conflicts.
-		opts.TableName = "audit_events_test_" + t.Name()
+		// t.Name() contains "/" for subtests, which is not valid in SQL identifiers.
+		sanitized := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
+		opts.TableName = "audit_events_test_" + sanitized
 	}
 
 	configJSON := fmt.Sprintf(`{"table_name":%q,"batch_size":%d,"max_events":%d}`,
