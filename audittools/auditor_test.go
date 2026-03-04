@@ -5,10 +5,12 @@ package audittools
 
 import (
 	"context"
-	"strings"
+	"regexp"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/sapcc/go-bits/assert"
 )
 
 func TestNewAuditorInvalidBackingStoreConfig(t *testing.T) {
@@ -19,14 +21,7 @@ func TestNewAuditorInvalidBackingStoreConfig(t *testing.T) {
 		EnvPrefix: "TEST_AUDIT",
 	})
 
-	if err == nil {
-		t.Fatal("expected error for invalid backing store config, got nil")
-	}
-
-	expectedMsg := "unknown backing store type"
-	if !strings.Contains(err.Error(), expectedMsg) {
-		t.Fatalf("expected error containing %q, got: %v", expectedMsg, err)
-	}
+	assert.ErrEqual(t, err, regexp.MustCompile("unknown backing store type"))
 }
 
 func TestNewAuditorValidBackingStoreConfig(t *testing.T) {
