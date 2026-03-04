@@ -94,6 +94,10 @@ func (s *FileBackingStore) Init(registry prometheus.Registerer) error {
 	if err := os.MkdirAll(s.Directory, 0700); err != nil {
 		return fmt.Errorf("audittools: failed to create directory: %w", err)
 	}
+	// MkdirAll does not update permissions on existing directories.
+	if err := os.Chmod(s.Directory, 0700); err != nil {
+		return fmt.Errorf("audittools: failed to chmod directory: %w", err)
+	}
 
 	s.initializeMetrics(registry)
 	return s.UpdateMetrics()
@@ -160,7 +164,7 @@ func (s *FileBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	files, err := s.listFiles()
+	files, _, err := s.listFiles()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,12 +192,10 @@ func (s *FileBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 
 // UpdateMetrics implements BackingStore.
 func (s *FileBackingStore) UpdateMetrics() error {
-	files, err := s.listFiles()
+	files, totalSize, err := s.listFiles()
 	if err != nil {
 		return err
 	}
-
-	totalSize := s.calculateTotalSize(files)
 
 	// Synchronize cached size with filesystem to correct any drift from incomplete writes or external modifications.
 	s.cachedTotalSize.Store(totalSize)
@@ -373,32 +375,28 @@ func (s *FileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 	return nil
 }
 
-// listFiles returns all event files in the backing store directory, sorted by name.
-// Sorted by name ensures FIFO processing since filenames contain timestamps.
-func (s *FileBackingStore) listFiles() ([]string, error) {
+// listFiles returns all event files in the backing store directory, sorted by name,
+// along with their combined size. Sorted by name ensures FIFO processing since
+// filenames contain timestamps. Size is computed from DirEntry to avoid redundant stat calls.
+func (s *FileBackingStore) listFiles() (files []string, totalSize int64, err error) {
 	entries, err := os.ReadDir(s.Directory)
 	if err != nil {
-		return nil, fmt.Errorf("audittools: failed to read backing store directory: %w", err)
+		return nil, 0, fmt.Errorf("audittools: failed to read backing store directory: %w", err)
 	}
 
 	// Preallocate capacity based on directory entries to avoid reallocations.
-	files := make([]string, 0, len(entries))
+	files = make([]string, 0, len(entries))
 	for _, entry := range entries {
 		if isEventFile(entry) {
 			files = append(files, filepath.Join(s.Directory, entry.Name()))
+			if info, err := entry.Info(); err == nil {
+				totalSize += info.Size()
+			}
 		}
 	}
 
 	slices.Sort(files)
-	return files, nil
-}
-
-func (s *FileBackingStore) calculateTotalSize(files []string) int64 {
-	var totalSize int64
-	for _, f := range files {
-		totalSize += getFileSize(f)
-	}
-	return totalSize
+	return files, totalSize, nil
 }
 
 func (s *FileBackingStore) handleCorruptedEvent(corruptedLine []byte, sourceFile string) {

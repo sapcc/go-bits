@@ -198,7 +198,9 @@ func mustReadBatch(t *testing.T, store *FileBackingStore) []cadf.Event {
 
 func mustListFiles(t *testing.T, store *FileBackingStore) []string {
 	t.Helper()
-	return must.ReturnT(store.listFiles())(t)
+	files, _, err := store.listFiles()
+	must.SucceedT(t, err)
+	return files
 }
 
 func assertFileCount(t *testing.T, store *FileBackingStore, expected int) {

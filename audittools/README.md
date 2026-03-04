@@ -15,7 +15,7 @@ As a cloud provider subject to strict audits (including PCI DSS and more), we mu
 **You MUST configure a persistent backing store (SQL or File-Based with PVC).**
 
 *   **Option 1 - SQL/Database Backing Store (Recommended)**:
-    *   Configure `BackingStoreFactories` with `SQLBackingStoreFactoryWithDB(db)` using an existing PostgreSQL database
+    *   Configure `BackingStoreFactories` with `SQLBackingStoreFactoryWithPostgresDB(db)` using an existing PostgreSQL database
     *   **Advantages**: No volume management, leverages existing database infrastructure
     *   **Use Case**: Services that already have a database connection (most SAP services)
 
@@ -125,7 +125,7 @@ auditor, err := audittools.NewAuditor(context.Background(), audittools.AuditorOp
     },
     EnvPrefix: "MYSERVICE_AUDIT",
     BackingStoreFactories: map[string]audittools.BackingStoreFactory{
-        "sql": audittools.SQLBackingStoreFactoryWithDB(db),
+        "sql": audittools.SQLBackingStoreFactoryWithPostgresDB(db),
     },
 })
 // The backing store type and params are configured via the environment variable:
@@ -197,14 +197,14 @@ If no `${PREFIX}_BACKING_STORE` environment variable is set, a default in-memory
 
 #### SQL/Database Parameters
 
-**Important**: SQL backing stores require applications to provide their own database connection using `SQLBackingStoreFactoryWithDB()` in the `BackingStoreFactories` map. This prevents duplicate connection pools and allows applications to reuse existing database connections.
+**Important**: SQL backing stores require applications to provide their own database connection using `SQLBackingStoreFactoryWithPostgresDB()` in the `BackingStoreFactories` map. This prevents duplicate connection pools and allows applications to reuse existing database connections.
 
 *   `table_name` (optional): Table name for storing events (default: `audit_events`)
 *   `batch_size` (optional): Number of events to read per batch (default: 100)
 *   `max_events` (optional): Maximum total events to buffer (default: 10000)
 *   `skip_migration` (optional): Skip automatic table creation (default: false)
 
-**Database Setup**: The backing store will automatically create the required table unless `skip_migration` is true. For manual migration, see [`backing_store_sql_migration.sql`](backing_store_sql_migration.sql).
+**Database Setup**: The backing store will automatically create the required table unless `skip_migration` is true.
 
 Each auditor has its own factory map, allowing different auditors in the same application to use different database connections or backing store implementations without global state pollution.
 
@@ -227,7 +227,7 @@ If running in Kubernetes, you have several options for configuring the backing s
     *   **Pros**: Data survives Pod deletion and rescheduling. No volume management. Leverages existing database infrastructure.
     *   **Cons**: Requires database access and table creation privileges.
     *   **Use Case**: **Recommended** for services that already have a database connection. Ideal for audit compliance without volume management overhead.
-    *   **Configuration**: Applications must provide `SQLBackingStoreFactoryWithDB(db)` in the `BackingStoreFactories` map with their existing database connection, then set environment variable `MYSERVICE_AUDIT_BACKING_STORE='{"type":"sql","params":{"table_name":"audit_events","max_events":10000}}'`
+    *   **Configuration**: Applications must provide `SQLBackingStoreFactoryWithPostgresDB(db)` in the `BackingStoreFactories` map with their existing database connection, then set environment variable `MYSERVICE_AUDIT_BACKING_STORE='{"type":"sql","params":{"table_name":"audit_events","max_events":10000}}'`
 
 2.  **File-Based with Persistent Storage (PVC)**:
     *   Mount a Persistent Volume Claim (PVC) and configure a file-based backing store pointing to that mount.
@@ -305,7 +305,6 @@ The backing store exports the following Prometheus metrics:
     *   `write_marshal`: Failed to marshal event to JSON
     *   `write_io`: Failed to write event to disk
     *   `write_sync`: Failed to sync (flush) event to disk
-    *   `write_close`: Failed to close backing store file
     *   `read_open`: Failed to open backing store file for reading
     *   `read_scan`: Failed to scan backing store file
     *   `corrupted_event`: Encountered corrupted event during read (written to dead-letter)
