@@ -382,16 +382,15 @@ func TestMemoryBackingStoreConcurrency(t *testing.T) {
 	numGoroutines := 10
 	eventsPerGoroutine := 10
 
-	wg.Add(numGoroutines)
 	for i := range numGoroutines {
 		wg.Go(func() {
 			for j := range eventsPerGoroutine {
-				eventID := fmt.Sprintf("routine-%d-event-%d", routineID, j)
+				eventID := fmt.Sprintf("routine-%d-event-%d", i, j)
 				if err := store.Write(testEvent(eventID)); err != nil {
 					t.Errorf("Write failed: %v", err)
 				}
 			}
-		}(i)
+		})
 	}
 
 	wg.Wait()

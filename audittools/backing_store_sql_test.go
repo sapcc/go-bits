@@ -196,7 +196,7 @@ func TestSQLBackingStoreTableNameValidation(t *testing.T) {
 
 	for _, tableName := range invalidNames {
 		configJSON := fmt.Sprintf(`{"table_name":%q}`, tableName)
-		factory := SQLBackingStoreFactoryWithDB(db)
+		factory := SQLBackingStoreFactoryWithPostgresDB(db)
 		_, err := factory(json.RawMessage(configJSON), AuditorOpts{
 			Registry: prometheus.NewRegistry(),
 		})
@@ -215,7 +215,7 @@ func TestSQLBackingStoreTableNameValidation(t *testing.T) {
 
 	for _, tableName := range validNames {
 		configJSON := fmt.Sprintf(`{"table_name":%q}`, tableName)
-		factory := SQLBackingStoreFactoryWithDB(db)
+		factory := SQLBackingStoreFactoryWithPostgresDB(db)
 		store, err := factory(json.RawMessage(configJSON), AuditorOpts{
 			Registry: prometheus.NewRegistry(),
 		})
@@ -247,7 +247,7 @@ func newTestSQLBackingStoreWithDB(t *testing.T, db *sql.DB, opts SQLBackingStore
 		opts.TableName, opts.BatchSize, opts.MaxEvents)
 
 	// Use new factory signature with AuditorOpts
-	factory := SQLBackingStoreFactoryWithDB(db)
+	factory := SQLBackingStoreFactoryWithPostgresDB(db)
 	store := must.ReturnT(factory(json.RawMessage(configJSON), AuditorOpts{
 		Registry: prometheus.NewRegistry(),
 	}))(t)
