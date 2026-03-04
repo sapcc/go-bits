@@ -53,7 +53,7 @@ func newTestAuditor(t *testing.T, opts AuditorOpts) (Auditor, error) {
 	}
 
 	if opts.Registry == nil {
-		opts.Registry = prometheus.NewRegistry()
+		opts.Registry = prometheus.NewPedanticRegistry()
 	}
 
 	// Provide default backing store factories if not specified
