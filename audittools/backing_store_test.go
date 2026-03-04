@@ -300,7 +300,7 @@ func TestMemoryBackingStoreDefaultMaxEvents(t *testing.T) {
 	}
 
 	// Default should be 1000
-	assert.DeepEqual(t, "default max events", memStore.MaxEvents.UnwrapOr(0), 1000)
+	assert.Equal(t, memStore.MaxEvents.UnwrapOr(0), 1000)
 }
 
 // TestMemoryBackingStoreEmptyRead tests reading from an empty store.

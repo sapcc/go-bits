@@ -55,14 +55,14 @@ func TestSQLBackingStoreWriteAndRead(t *testing.T) {
 
 	// Read batch (should get all events in FIFO order)
 	events := mustReadBatchSQL(t, store)
-	assert.DeepEqual(t, "event count", len(events), 3)
-	assert.DeepEqual(t, "event 1 ID", events[0].ID, "event-1")
-	assert.DeepEqual(t, "event 2 ID", events[1].ID, "event-2")
-	assert.DeepEqual(t, "event 3 ID", events[2].ID, "event-3")
+	assert.Equal(t, len(events), 3)
+	assert.Equal(t, events[0].ID, "event-1")
+	assert.Equal(t, events[1].ID, "event-2")
+	assert.Equal(t, events[2].ID, "event-3")
 
 	// Read again (should be empty after commit)
 	events = mustReadBatchSQL(t, store)
-	assert.DeepEqual(t, "empty batch count", len(events), 0)
+	assert.Equal(t, len(events), 0)
 }
 
 // TestSQLBackingStoreMaxEventsLimit tests the max events limit enforcement.
@@ -87,7 +87,7 @@ func TestSQLBackingStoreMaxEventsLimit(t *testing.T) {
 
 	// After reading and committing, we should be able to write again
 	events := mustReadBatchSQL(t, store)
-	assert.DeepEqual(t, "batch size", len(events), 3)
+	assert.Equal(t, len(events), 3)
 
 	// Now we should be able to write again
 	mustWriteSQL(t, store, testEvent("event-4"))
@@ -112,15 +112,15 @@ func TestSQLBackingStoreBatchSize(t *testing.T) {
 
 	// First batch should have 2 events
 	events := mustReadBatchSQL(t, store)
-	assert.DeepEqual(t, "first batch size", len(events), 2)
-	assert.DeepEqual(t, "event 1 ID", events[0].ID, "event-1")
-	assert.DeepEqual(t, "event 2 ID", events[1].ID, "event-2")
+	assert.Equal(t, len(events), 2)
+	assert.Equal(t, events[0].ID, "event-1")
+	assert.Equal(t, events[1].ID, "event-2")
 
 	// Second batch should have remaining 2 events
 	events = mustReadBatchSQL(t, store)
-	assert.DeepEqual(t, "second batch size", len(events), 2)
-	assert.DeepEqual(t, "event 3 ID", events[0].ID, "event-3")
-	assert.DeepEqual(t, "event 4 ID", events[1].ID, "event-4")
+	assert.Equal(t, len(events), 2)
+	assert.Equal(t, events[0].ID, "event-3")
+	assert.Equal(t, events[1].ID, "event-4")
 }
 
 // TestSQLBackingStoreUpdateMetrics tests metrics updates.
@@ -178,7 +178,7 @@ func TestSQLBackingStoreConcurrency(t *testing.T) {
 
 	// Read all events
 	events := mustReadBatchSQL(t, store)
-	assert.DeepEqual(t, "concurrent writes count", len(events), 10)
+	assert.Equal(t, len(events), 10)
 }
 
 // TestSQLBackingStoreTableNameValidation tests SQL injection prevention.
