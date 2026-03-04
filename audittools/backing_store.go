@@ -29,7 +29,7 @@ type BackingStore interface {
 	// Returns (nil, nil, nil) if no events are available.
 	ReadBatch() (events []cadf.Event, commit func() error, err error)
 
-	// UpdateMetrics updates the backing store metrics (e.g. size, file count).
+	// UpdateMetrics updates Prometheus metrics describing the state of the backing store (e.g. size, file count), if there are any.
 	// Must be efficient for periodic calls (typically every few seconds).
 	UpdateMetrics() error
 
