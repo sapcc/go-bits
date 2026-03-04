@@ -14,6 +14,7 @@ import (
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/must"
 )
 
 func TestFileBackingStoreWriteAndRead(t *testing.T) {
@@ -107,13 +108,7 @@ func TestBackingStorePermissions(t *testing.T) {
 
 func mustStat(t *testing.T, path string) os.FileInfo {
 	t.Helper()
-
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("stat failed for %s: %v", path, err)
-	}
-
-	return info
+	return must.ReturnT(os.Stat(path))(t)
 }
 
 func TestBackingStoreMaxTotalSize(t *testing.T) {
@@ -162,12 +157,9 @@ func newTestBackingStore(t *testing.T, opts FileBackingStoreOpts) *FileBackingSt
 
 	// Use new factory signature
 	factory := NewFileBackingStore
-	store, err := factory([]byte(configJSON), AuditorOpts{
+	store := must.ReturnT(factory([]byte(configJSON), AuditorOpts{
 		Registry: prometheus.NewRegistry(),
-	})
-	if err != nil {
-		t.Fatalf("NewFileBackingStore failed: %v", err)
-	}
+	}))(t)
 
 	fileStore, ok := store.(*FileBackingStore)
 	if !ok {
@@ -188,24 +180,17 @@ func testEvent(id string) cadf.Event {
 
 func mustWrite(t *testing.T, store *FileBackingStore, event cadf.Event) {
 	t.Helper()
-
-	if err := store.Write(event); err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
+	must.SucceedT(t, store.Write(event))
 }
 
 func mustReadBatch(t *testing.T, store *FileBackingStore) []cadf.Event {
 	t.Helper()
 
 	events, commit, err := store.ReadBatch()
-	if err != nil {
-		t.Fatalf("ReadBatch failed: %v", err)
-	}
+	must.SucceedT(t, err)
 
 	if commit != nil {
-		if err := commit(); err != nil {
-			t.Fatalf("commit failed: %v", err)
-		}
+		must.SucceedT(t, commit())
 	}
 
 	return events
@@ -213,13 +198,7 @@ func mustReadBatch(t *testing.T, store *FileBackingStore) []cadf.Event {
 
 func mustListFiles(t *testing.T, store *FileBackingStore) []string {
 	t.Helper()
-
-	files, err := store.listFiles()
-	if err != nil {
-		t.Fatalf("listFiles failed: %v", err)
-	}
-
-	return files
+	return must.ReturnT(store.listFiles())(t)
 }
 
 func assertFileCount(t *testing.T, store *FileBackingStore, expected int) {
@@ -310,12 +289,9 @@ func TestMemoryBackingStoreDefaultMaxEvents(t *testing.T) {
 	configJSON := `{}`
 
 	factory := NewInMemoryBackingStore
-	store, err := factory([]byte(configJSON), AuditorOpts{
+	store := must.ReturnT(factory([]byte(configJSON), AuditorOpts{
 		Registry: prometheus.NewRegistry(),
-	})
-	if err != nil {
-		t.Fatalf("NewInMemoryBackingStore failed: %v", err)
-	}
+	}))(t)
 	defer store.Close()
 
 	memStore, ok := store.(*InMemoryBackingStore)
@@ -336,9 +312,7 @@ func TestMemoryBackingStoreEmptyRead(t *testing.T) {
 
 	// Read from empty store
 	events, commit, err := store.ReadBatch()
-	if err != nil {
-		t.Fatalf("ReadBatch failed: %v", err)
-	}
+	assert.ErrEqual(t, err, nil)
 
 	if events != nil {
 		t.Errorf("expected nil events, got %d events", len(events))
@@ -362,15 +336,10 @@ func TestMemoryBackingStoreMetrics(t *testing.T) {
 	mustWriteMemory(t, store, testEvent("event-3"))
 
 	// Update metrics
-	if err := store.UpdateMetrics(); err != nil {
-		t.Fatalf("UpdateMetrics failed: %v", err)
-	}
+	must.SucceedT(t, store.UpdateMetrics())
 
 	// Gather metrics
-	metricFamilies, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("failed to gather metrics: %v", err)
-	}
+	metricFamilies := must.ReturnT(registry.Gather())(t)
 
 	// Verify metrics exist
 	foundWrite := false
@@ -430,31 +399,21 @@ func TestMemoryBackingStoreConcurrency(t *testing.T) {
 
 	// Read all events
 	events, commit, err := store.ReadBatch()
-	if err != nil {
-		t.Fatalf("ReadBatch failed: %v", err)
-	}
+	assert.ErrEqual(t, err, nil)
 
 	// Should have all events
 	expectedCount := numGoroutines * eventsPerGoroutine
-	if len(events) != expectedCount {
-		t.Errorf("expected %d events, got %d", expectedCount, len(events))
-	}
+	assert.Equal(t, len(events), expectedCount)
 
 	// Commit should work
 	if commit != nil {
-		if err := commit(); err != nil {
-			t.Fatalf("commit failed: %v", err)
-		}
+		must.SucceedT(t, commit())
 	}
 
 	// Store should be empty now
 	events, _, err = store.ReadBatch()
-	if err != nil {
-		t.Fatalf("ReadBatch failed: %v", err)
-	}
-	if len(events) != 0 {
-		t.Errorf("expected empty store after commit, got %d events", len(events))
-	}
+	assert.ErrEqual(t, err, nil)
+	assert.Equal(t, len(events), 0)
 }
 
 // Test helper types and functions for memory backing store
@@ -475,12 +434,9 @@ func newTestMemoryBackingStoreWithRegistry(t *testing.T, opts MemoryBackingStore
 
 	// Use new factory signature
 	factory := NewInMemoryBackingStore
-	store, err := factory([]byte(configJSON), AuditorOpts{
+	store := must.ReturnT(factory([]byte(configJSON), AuditorOpts{
 		Registry: registry,
-	})
-	if err != nil {
-		t.Fatalf("NewInMemoryBackingStore failed: %v", err)
-	}
+	}))(t)
 
 	memStore, ok := store.(*InMemoryBackingStore)
 	if !ok {
@@ -492,24 +448,17 @@ func newTestMemoryBackingStoreWithRegistry(t *testing.T, opts MemoryBackingStore
 
 func mustWriteMemory(t *testing.T, store *InMemoryBackingStore, event cadf.Event) {
 	t.Helper()
-
-	if err := store.Write(event); err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
+	must.SucceedT(t, store.Write(event))
 }
 
 func mustReadBatchMemory(t *testing.T, store *InMemoryBackingStore) []cadf.Event {
 	t.Helper()
 
 	events, commit, err := store.ReadBatch()
-	if err != nil {
-		t.Fatalf("ReadBatch failed: %v", err)
-	}
+	must.SucceedT(t, err)
 
 	if commit != nil {
-		if err := commit(); err != nil {
-			t.Fatalf("commit failed: %v", err)
-		}
+		must.SucceedT(t, commit())
 	}
 
 	if events == nil {

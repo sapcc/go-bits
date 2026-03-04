@@ -15,6 +15,7 @@ import (
 
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/easypg"
+	"github.com/sapcc/go-bits/must"
 )
 
 // TestMain sets up a test database server for all tests
@@ -138,19 +139,13 @@ func TestSQLBackingStoreUpdateMetrics(t *testing.T) {
 	mustWriteSQL(t, store, testEvent("event-2"))
 
 	// Update metrics
-	err := store.UpdateMetrics()
-	if err != nil {
-		t.Fatalf("UpdateMetrics failed: %v", err)
-	}
+	must.SucceedT(t, store.UpdateMetrics())
 
 	// Read and commit
 	_ = mustReadBatchSQL(t, store)
 
 	// Update metrics again
-	err = store.UpdateMetrics()
-	if err != nil {
-		t.Fatalf("UpdateMetrics failed after read: %v", err)
-	}
+	must.SucceedT(t, store.UpdateMetrics())
 }
 
 // TestSQLBackingStoreConcurrency tests concurrent write and read operations.
@@ -253,12 +248,9 @@ func newTestSQLBackingStoreWithDB(t *testing.T, db *sql.DB, opts SQLBackingStore
 
 	// Use new factory signature with AuditorOpts
 	factory := SQLBackingStoreFactoryWithDB(db)
-	store, err := factory(json.RawMessage(configJSON), AuditorOpts{
+	store := must.ReturnT(factory(json.RawMessage(configJSON), AuditorOpts{
 		Registry: prometheus.NewRegistry(),
-	})
-	if err != nil {
-		t.Fatalf("factory failed: %v", err)
-	}
+	}))(t)
 
 	sqlStore, ok := store.(*SQLBackingStore)
 	if !ok {
@@ -276,24 +268,17 @@ func newTestSQLBackingStoreWithDB(t *testing.T, db *sql.DB, opts SQLBackingStore
 
 func mustWriteSQL(t *testing.T, store *SQLBackingStore, event cadf.Event) {
 	t.Helper()
-
-	if err := store.Write(event); err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
+	must.SucceedT(t, store.Write(event))
 }
 
 func mustReadBatchSQL(t *testing.T, store *SQLBackingStore) []cadf.Event {
 	t.Helper()
 
 	events, commit, err := store.ReadBatch()
-	if err != nil {
-		t.Fatalf("ReadBatch failed: %v", err)
-	}
+	must.SucceedT(t, err)
 
 	if commit != nil {
-		if err := commit(); err != nil {
-			t.Fatalf("commit failed: %v", err)
-		}
+		must.SucceedT(t, commit())
 	}
 
 	return events

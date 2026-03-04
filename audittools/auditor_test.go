@@ -34,9 +34,7 @@ func TestNewAuditorValidBackingStoreConfig(t *testing.T) {
 		EnvPrefix: "TEST_AUDIT",
 	})
 
-	if err != nil {
-		t.Fatalf("expected no error, got: %v", err)
-	}
+	assert.ErrEqual(t, err, nil)
 	if auditor == nil {
 		t.Fatal("expected auditor to be created, got nil")
 	}
