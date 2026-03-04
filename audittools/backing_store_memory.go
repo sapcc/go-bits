@@ -118,10 +118,16 @@ func (s *InMemoryBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	eventsCopy := make([]cadf.Event, len(s.events))
 	copy(eventsCopy, s.events)
 
+	// Capture the count of events being returned. The commit function will
+	// remove only these events from the front of the slice, preserving any
+	// events written between this ReadBatch() call and the commit() call.
+	count := len(s.events)
 	commit := func() error {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.events = nil
+		// Remove only the events that were part of this batch.
+		// Events appended by concurrent Write() calls are preserved.
+		s.events = append([]cadf.Event(nil), s.events[count:]...)
 		return nil
 	}
 
