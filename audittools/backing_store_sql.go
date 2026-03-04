@@ -68,7 +68,7 @@ type SQLBackingStore struct {
 //	        "sql": SQLBackingStoreFactoryWithDB(db),
 //	    },
 //	})
-func SQLBackingStoreFactoryWithDB(db *sql.DB) BackingStoreFactory {
+func SQLBackingStoreFactoryWithPostgresDB(db *sql.DB) BackingStoreFactory {
 	return func(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
 		var store SQLBackingStore
 		if err := json.Unmarshal(params, &store); err != nil {
