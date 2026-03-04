@@ -14,6 +14,8 @@ import (
 	"github.com/majewsky/gg/option"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-api-declarations/cadf"
+
+	"github.com/sapcc/go-bits/sqlext"
 )
 
 var sqlIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
@@ -207,43 +209,33 @@ func (s *SQLBackingStore) Write(event cadf.Event) error {
 func (s *SQLBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	batchSize := s.BatchSize.UnwrapOr(100)
 	// String concatenation safe after Init() validation. ORDER BY uses index for efficient FIFO reads.
-	//nolint:gosec // G202: Table name validated in Init() with regex matching PostgreSQL identifier rules
 	query := "SELECT id, event_data FROM " + s.TableName + " ORDER BY created_at ASC, id ASC LIMIT $1"
-
-	rows, err := s.db.Query(query, batchSize)
-	if err != nil {
-		s.errorCounter.WithLabelValues("read_query").Inc()
-		return nil, nil, fmt.Errorf("audittools: failed to query events: %w", err)
-	}
-	defer rows.Close()
 
 	// Preallocate based on known batch size to avoid reallocations during iteration.
 	events := make([]cadf.Event, 0, batchSize)
 	eventIDs := make([]int64, 0, batchSize)
 
-	for rows.Next() {
+	err := sqlext.ForeachRow(s.db, query, []any{batchSize}, func(rows *sql.Rows) error {
 		var id int64
 		var eventData []byte
 
 		if err := rows.Scan(&id, &eventData); err != nil {
 			s.errorCounter.WithLabelValues("read_scan").Inc()
-			return nil, nil, fmt.Errorf("audittools: failed to scan event: %w", err)
+			return fmt.Errorf("audittools: cannot scan event: %w", err)
 		}
 
 		var event cadf.Event
 		if err := json.Unmarshal(eventData, &event); err != nil {
 			s.errorCounter.WithLabelValues("read_unmarshal").Inc()
-			// Skip corrupted events rather than failing the entire batch - allows partial recovery.
-			continue
+			return nil //nolint:nilerr // intentionally skip corrupted events
 		}
 
 		events = append(events, event)
 		eventIDs = append(eventIDs, id)
-	}
-
-	if err := rows.Err(); err != nil {
-		s.errorCounter.WithLabelValues("read_rows").Inc()
-		return nil, nil, fmt.Errorf("audittools: failed to iterate events: %w", err)
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if len(events) == 0 {
