@@ -11,7 +11,6 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/easypg"
@@ -26,7 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 // emptyMigration provides a minimal migration config for easypg.
-// The SQLBackingStore creates its own table via ensureTableExists(),
+// The sqlBackingStore creates its own table via ensureTableExists(),
 // so we only need to satisfy easypg's requirement for a non-empty migration map.
 func emptyMigration() easypg.Configuration {
 	return easypg.Configuration{
@@ -42,26 +41,26 @@ func TestSQLBackingStoreWriteAndRead(t *testing.T) {
 	db := easypg.ConnectForTest(t, emptyMigration())
 	defer db.Close()
 
-	store := newTestSQLBackingStoreWithDB(t, db, SQLBackingStoreOpts{
+	store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
 		BatchSize: 10,
 		MaxEvents: 100,
 	})
 	defer store.Close()
 
 	// Write events
-	mustWriteSQL(t, store, testEvent("event-1"))
-	mustWriteSQL(t, store, testEvent("event-2"))
-	mustWriteSQL(t, store, testEvent("event-3"))
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-3"))
 
 	// Read batch (should get all events in FIFO order)
-	events := mustReadBatchSQL(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 3)
 	assert.Equal(t, events[0].ID, "event-1")
 	assert.Equal(t, events[1].ID, "event-2")
 	assert.Equal(t, events[2].ID, "event-3")
 
 	// Read again (should be empty after commit)
-	events = mustReadBatchSQL(t, store)
+	events = mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 0)
 }
 
@@ -70,27 +69,27 @@ func TestSQLBackingStoreMaxEventsLimit(t *testing.T) {
 	db := easypg.ConnectForTest(t, emptyMigration())
 	defer db.Close()
 
-	store := newTestSQLBackingStoreWithDB(t, db, SQLBackingStoreOpts{
+	store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
 		BatchSize: 10,
 		MaxEvents: 3,
 	})
 	defer store.Close()
 
 	// Write up to the limit
-	mustWriteSQL(t, store, testEvent("event-1"))
-	mustWriteSQL(t, store, testEvent("event-2"))
-	mustWriteSQL(t, store, testEvent("event-3"))
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-3"))
 
 	// Writing beyond the limit should fail
 	err := store.Write(testEvent("event-4"))
 	assert.ErrEqual(t, err, ErrBackingStoreFull)
 
 	// After reading and committing, we should be able to write again
-	events := mustReadBatchSQL(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 3)
 
 	// Now we should be able to write again
-	mustWriteSQL(t, store, testEvent("event-4"))
+	mustWriteStore(t, store, testEvent("event-4"))
 }
 
 // TestSQLBackingStoreBatchSize tests that batch size is respected.
@@ -98,26 +97,26 @@ func TestSQLBackingStoreBatchSize(t *testing.T) {
 	db := easypg.ConnectForTest(t, emptyMigration())
 	defer db.Close()
 
-	store := newTestSQLBackingStoreWithDB(t, db, SQLBackingStoreOpts{
+	store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
 		BatchSize: 2,
 		MaxEvents: 100,
 	})
 	defer store.Close()
 
 	// Write more events than batch size
-	mustWriteSQL(t, store, testEvent("event-1"))
-	mustWriteSQL(t, store, testEvent("event-2"))
-	mustWriteSQL(t, store, testEvent("event-3"))
-	mustWriteSQL(t, store, testEvent("event-4"))
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-3"))
+	mustWriteStore(t, store, testEvent("event-4"))
 
 	// First batch should have 2 events
-	events := mustReadBatchSQL(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 2)
 	assert.Equal(t, events[0].ID, "event-1")
 	assert.Equal(t, events[1].ID, "event-2")
 
 	// Second batch should have remaining 2 events
-	events = mustReadBatchSQL(t, store)
+	events = mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 2)
 	assert.Equal(t, events[0].ID, "event-3")
 	assert.Equal(t, events[1].ID, "event-4")
@@ -128,21 +127,21 @@ func TestSQLBackingStoreUpdateMetrics(t *testing.T) {
 	db := easypg.ConnectForTest(t, emptyMigration())
 	defer db.Close()
 
-	store := newTestSQLBackingStoreWithDB(t, db, SQLBackingStoreOpts{
+	store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
 		BatchSize: 10,
 		MaxEvents: 100,
 	})
 	defer store.Close()
 
 	// Write some events
-	mustWriteSQL(t, store, testEvent("event-1"))
-	mustWriteSQL(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
 
 	// Update metrics
 	must.SucceedT(t, store.UpdateMetrics())
 
 	// Read and commit
-	_ = mustReadBatchSQL(t, store)
+	_ = mustReadBatchStore(t, store)
 
 	// Update metrics again
 	must.SucceedT(t, store.UpdateMetrics())
@@ -153,7 +152,7 @@ func TestSQLBackingStoreConcurrency(t *testing.T) {
 	db := easypg.ConnectForTest(t, emptyMigration())
 	defer db.Close()
 
-	store := newTestSQLBackingStoreWithDB(t, db, SQLBackingStoreOpts{
+	store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
 		BatchSize: 10,
 		MaxEvents: 100,
 	})
@@ -177,7 +176,7 @@ func TestSQLBackingStoreConcurrency(t *testing.T) {
 	}
 
 	// Read all events
-	events := mustReadBatchSQL(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 10)
 }
 
@@ -229,13 +228,13 @@ func TestSQLBackingStoreTableNameValidation(t *testing.T) {
 
 // Test helper types and functions
 
-type SQLBackingStoreOpts struct {
+type sqlBackingStoreOpts struct {
 	TableName string
 	BatchSize int
 	MaxEvents int
 }
 
-func newTestSQLBackingStoreWithDB(t *testing.T, db *sql.DB, opts SQLBackingStoreOpts) *SQLBackingStore {
+func newTestSQLBackingStore(t *testing.T, db *sql.DB, opts sqlBackingStoreOpts) BackingStore {
 	t.Helper()
 
 	if opts.TableName == "" {
@@ -246,16 +245,12 @@ func newTestSQLBackingStoreWithDB(t *testing.T, db *sql.DB, opts SQLBackingStore
 	configJSON := fmt.Sprintf(`{"table_name":%q,"batch_size":%d,"max_events":%d}`,
 		opts.TableName, opts.BatchSize, opts.MaxEvents)
 
-	// Use new factory signature with AuditorOpts
 	factory := SQLBackingStoreFactoryWithPostgresDB(db)
 	store := must.ReturnT(factory(json.RawMessage(configJSON), AuditorOpts{
 		Registry: prometheus.NewRegistry(),
 	}))(t)
 
-	sqlStore, ok := store.(*SQLBackingStore)
-	if !ok {
-		t.Fatalf("expected *SQLBackingStore, got %T", store)
-	}
+	sqlStore := store.(*sqlBackingStore)
 
 	// Clean up table on test completion
 	t.Cleanup(func() {
@@ -263,23 +258,5 @@ func newTestSQLBackingStoreWithDB(t *testing.T, db *sql.DB, opts SQLBackingStore
 		_, _ = db.Exec("DROP TABLE IF EXISTS " + sqlStore.TableName)
 	})
 
-	return sqlStore
-}
-
-func mustWriteSQL(t *testing.T, store *SQLBackingStore, event cadf.Event) {
-	t.Helper()
-	must.SucceedT(t, store.Write(event))
-}
-
-func mustReadBatchSQL(t *testing.T, store *SQLBackingStore) []cadf.Event {
-	t.Helper()
-
-	events, commit, err := store.ReadBatch()
-	must.SucceedT(t, err)
-
-	if commit != nil {
-		must.SucceedT(t, commit())
-	}
-
-	return events
+	return store
 }

@@ -24,7 +24,7 @@ import (
 //	    },
 //	})
 func NewInMemoryBackingStore(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
-	var store InMemoryBackingStore
+	var store inMemoryBackingStore
 	if err := json.Unmarshal(params, &store); err != nil {
 		return nil, fmt.Errorf("audittools: failed to parse memory backing store config: %w", err)
 	}
@@ -40,13 +40,13 @@ func NewInMemoryBackingStore(params json.RawMessage, opts AuditorOpts) (BackingS
 	return &store, nil
 }
 
-// InMemoryBackingStore implements BackingStore using an in-memory slice.
+// inMemoryBackingStore implements BackingStore using an in-memory slice.
 // Suitable for services without persistent volumes that need temporary buffering during RabbitMQ unavailability.
 // Data is lost on process restart, but provides zero-configuration buffering for transient outages.
 //
 // Thread safety: Write() and ReadBatch() are serialized by a mutex.
 // Multiple concurrent calls are safe but will block each other.
-type InMemoryBackingStore struct {
+type inMemoryBackingStore struct {
 	// Configuration (JSON params)
 	MaxEvents option.Option[int] `json:"max_events"`
 
@@ -61,17 +61,12 @@ type InMemoryBackingStore struct {
 }
 
 // Init implements BackingStore.
-func (s *InMemoryBackingStore) Init(registry prometheus.Registerer) error {
-	// 1000 events provides reasonable buffering (~100KB) without excessive memory usage.
-	if s.MaxEvents.IsNone() {
-		s.MaxEvents = option.Some(1000)
-	}
-
+func (s *inMemoryBackingStore) Init(registry prometheus.Registerer) error {
 	s.initializeMetrics(registry)
 	return s.UpdateMetrics()
 }
 
-func (s *InMemoryBackingStore) initializeMetrics(registry prometheus.Registerer) {
+func (s *inMemoryBackingStore) initializeMetrics(registry prometheus.Registerer) {
 	s.writeCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "audittools_backing_store_writes_total",
 		Help: "Total number of audit events written to the backing store.",
@@ -91,7 +86,7 @@ func (s *InMemoryBackingStore) initializeMetrics(registry prometheus.Registerer)
 }
 
 // Write implements BackingStore.
-func (s *InMemoryBackingStore) Write(event cadf.Event) error {
+func (s *inMemoryBackingStore) Write(event cadf.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -106,7 +101,7 @@ func (s *InMemoryBackingStore) Write(event cadf.Event) error {
 }
 
 // ReadBatch implements BackingStore.
-func (s *InMemoryBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
+func (s *inMemoryBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -136,7 +131,7 @@ func (s *InMemoryBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 }
 
 // UpdateMetrics implements BackingStore.
-func (s *InMemoryBackingStore) UpdateMetrics() error {
+func (s *inMemoryBackingStore) UpdateMetrics() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -145,6 +140,6 @@ func (s *InMemoryBackingStore) UpdateMetrics() error {
 }
 
 // Close implements BackingStore.
-func (s *InMemoryBackingStore) Close() error {
+func (s *inMemoryBackingStore) Close() error {
 	return nil
 }

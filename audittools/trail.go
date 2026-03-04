@@ -32,8 +32,7 @@ type auditTrail struct {
 // - RabbitMQ down: NEW → BUFFERED → SENT
 //
 // The BackingStore can be either file-based (for persistent buffering) or
-// in-memory (for services without persistent volumes). This replaces the
-// old pendingEvents slice with a unified buffering mechanism.
+// in-memory (for services without persistent volumes).
 //
 // Flow Control:
 // If BackingStore.Write() fails (backing store full), stop reading from EventSink

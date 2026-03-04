@@ -20,7 +20,7 @@ import (
 
 var sqlIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
-// SQLBackingStore implements BackingStore using a PostgreSQL database.
+// sqlBackingStore implements BackingStore using a PostgreSQL database.
 // Suitable for services that already have a database connection and want to avoid managing filesystem volumes.
 // Leverages existing database infrastructure for audit buffering without additional operational complexity.
 //
@@ -38,9 +38,9 @@ var sqlIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 //	CREATE INDEX ON audit_events (created_at, id);
 //
 // Important: Applications must provide their own database connection using
-// SQLBackingStoreFactoryWithDB to avoid creating duplicate connection pools
+// SQLBackingStoreFactoryWithPostgresDB to avoid creating duplicate connection pools
 // (each PostgreSQL process should maintain only one connection pool per database).
-type SQLBackingStore struct {
+type sqlBackingStore struct {
 	// Configuration (JSON params)
 	TableName     string             `json:"table_name"`     // Table name (default: "audit_events")
 	BatchSize     option.Option[int] `json:"batch_size"`     // Number of events per batch (default: 100)
@@ -55,7 +55,7 @@ type SQLBackingStore struct {
 	sizeGauge    prometheus.Gauge       `json:"-"`
 }
 
-// SQLBackingStoreFactoryWithDB returns a factory that creates SQL backing stores using
+// SQLBackingStoreFactoryWithPostgresDB returns a factory that creates SQL backing stores using
 // an existing database connection. Accepts a dependency rather than managing connections internally,
 // following the dependency injection pattern that enables testing with go-bits/easypg utilities.
 //
@@ -67,12 +67,12 @@ type SQLBackingStore struct {
 //	auditor, err := NewAuditor(ctx, AuditorOpts{
 //	    EnvPrefix: "MYAPP_AUDIT_RABBITMQ",
 //	    BackingStoreFactories: map[string]BackingStoreFactory{
-//	        "sql": SQLBackingStoreFactoryWithDB(db),
+//	        "sql": SQLBackingStoreFactoryWithPostgresDB(db),
 //	    },
 //	})
 func SQLBackingStoreFactoryWithPostgresDB(db *sql.DB) BackingStoreFactory {
 	return func(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
-		var store SQLBackingStore
+		var store sqlBackingStore
 		if err := json.Unmarshal(params, &store); err != nil {
 			return nil, fmt.Errorf("audittools: failed to parse SQL backing store config: %w", err)
 		}
@@ -91,21 +91,13 @@ func SQLBackingStoreFactoryWithPostgresDB(db *sql.DB) BackingStoreFactory {
 }
 
 // Init implements BackingStore.
-func (s *SQLBackingStore) Init(registry prometheus.Registerer) error {
+func (s *sqlBackingStore) Init(registry prometheus.Registerer) error {
 	if s.db == nil {
-		return errors.New("audittools: database connection is required for sql backing store (use SQLBackingStoreFactoryWithDB)")
+		return errors.New("audittools: database connection is required for sql backing store (use SQLBackingStoreFactoryWithPostgresDB)")
 	}
 
 	if s.TableName == "" {
 		s.TableName = "audit_events"
-	}
-	// 100 events per batch balances database round-trip overhead with transaction size.
-	if s.BatchSize.IsNone() {
-		s.BatchSize = option.Some(100)
-	}
-	// 10000 events provides substantial buffering (~1MB) during extended RabbitMQ outages.
-	if s.MaxEvents.IsNone() {
-		s.MaxEvents = option.Some(10000)
 	}
 
 	// Validate table name before ANY SQL operations to prevent injection attacks.
@@ -125,7 +117,7 @@ func (s *SQLBackingStore) Init(registry prometheus.Registerer) error {
 	return s.UpdateMetrics()
 }
 
-func (s *SQLBackingStore) ensureTableExists() error {
+func (s *sqlBackingStore) ensureTableExists() error {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			id BIGSERIAL PRIMARY KEY,
@@ -149,7 +141,7 @@ func (s *SQLBackingStore) ensureTableExists() error {
 	return nil
 }
 
-func (s *SQLBackingStore) initializeMetrics(registry prometheus.Registerer) {
+func (s *sqlBackingStore) initializeMetrics(registry prometheus.Registerer) {
 	s.writeCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "audittools_backing_store_writes_total",
 		Help: "Total number of audit events written to the backing store.",
@@ -173,7 +165,7 @@ func (s *SQLBackingStore) initializeMetrics(registry prometheus.Registerer) {
 }
 
 // Write implements BackingStore.
-func (s *SQLBackingStore) Write(event cadf.Event) error {
+func (s *sqlBackingStore) Write(event cadf.Event) error {
 	maxEvents := s.MaxEvents.UnwrapOr(10000)
 	count, err := s.countEvents()
 	if err != nil {
@@ -206,7 +198,7 @@ func (s *SQLBackingStore) Write(event cadf.Event) error {
 }
 
 // ReadBatch implements BackingStore.
-func (s *SQLBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
+func (s *sqlBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	batchSize := s.BatchSize.UnwrapOr(100)
 	// String concatenation safe after Init() validation. ORDER BY uses index for efficient FIFO reads.
 	query := "SELECT id, event_data FROM " + s.TableName + " ORDER BY created_at ASC, id ASC LIMIT $1"
@@ -248,7 +240,7 @@ func (s *SQLBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	return events, commit, nil
 }
 
-func (s *SQLBackingStore) makeCommitFunc(eventIDs []int64) func() error {
+func (s *sqlBackingStore) makeCommitFunc(eventIDs []int64) func() error {
 	return func() error {
 		if len(eventIDs) == 0 {
 			return nil
@@ -269,7 +261,7 @@ func (s *SQLBackingStore) makeCommitFunc(eventIDs []int64) func() error {
 }
 
 // UpdateMetrics implements BackingStore.
-func (s *SQLBackingStore) UpdateMetrics() error {
+func (s *sqlBackingStore) UpdateMetrics() error {
 	count, err := s.countEvents()
 	if err != nil {
 		return err
@@ -282,11 +274,11 @@ func (s *SQLBackingStore) UpdateMetrics() error {
 // Close implements BackingStore.
 // Does NOT close the database connection because it's provided via dependency injection.
 // The application owns the connection lifecycle and must close it when appropriate.
-func (s *SQLBackingStore) Close() error {
+func (s *sqlBackingStore) Close() error {
 	return nil
 }
 
-func (s *SQLBackingStore) countEvents() (int64, error) {
+func (s *sqlBackingStore) countEvents() (int64, error) {
 	query := "SELECT COUNT(*) FROM " + s.TableName
 
 	var count int64

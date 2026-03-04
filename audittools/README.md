@@ -168,9 +168,12 @@ auditor, err := audittools.NewAuditor(context.Background(), audittools.AuditorOp
 
 **Direct BackingStore Instance** (Advanced):
 ```go
-// You can also provide a backing store instance directly:
-backingStore := &audittools.InMemoryBackingStore{}
-backingStore.Init(prometheus.DefaultRegisterer)
+// You can also provide a backing store instance directly via the factory:
+backingStore, err := audittools.NewInMemoryBackingStore(
+    json.RawMessage(`{"max_events":1000}`),
+    audittools.AuditorOpts{Registry: prometheus.DefaultRegisterer},
+)
+// ... handle error
 
 auditor, err := audittools.NewAuditor(context.Background(), audittools.AuditorOpts{
     Observer: audittools.Observer{

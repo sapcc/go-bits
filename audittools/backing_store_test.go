@@ -17,37 +17,130 @@ import (
 	"github.com/sapcc/go-bits/must"
 )
 
-func TestFileBackingStoreWriteAndRead(t *testing.T) {
-	store := newTestBackingStore(t, FileBackingStoreOpts{
-		MaxFileSize: 1024,
+////////////////////////////////////////////////////////////////////////////////
+// Shared test infrastructure
+
+func testEvent(id string) cadf.Event {
+	return cadf.Event{
+		ID:        id,
+		EventType: "activity",
+		Action:    "create",
+		Outcome:   "success",
+	}
+}
+
+func mustWriteStore(t *testing.T, store BackingStore, event cadf.Event) {
+	t.Helper()
+	must.SucceedT(t, store.Write(event))
+}
+
+func mustReadBatchStore(t *testing.T, store BackingStore) []cadf.Event {
+	t.Helper()
+
+	events, commit, err := store.ReadBatch()
+	must.SucceedT(t, err)
+
+	if commit != nil {
+		must.SucceedT(t, commit())
+	}
+
+	if events == nil {
+		return []cadf.Event{}
+	}
+
+	return events
+}
+
+func testWithEachTypeOfBackingStore(t *testing.T, f func(*testing.T, BackingStore)) {
+	t.Run("file", func(t *testing.T) {
+		configJSON := fmt.Sprintf(`{"directory":%q,"max_file_size":10240}`, t.TempDir())
+		store := must.ReturnT(NewFileBackingStore([]byte(configJSON), AuditorOpts{
+			Registry: prometheus.NewRegistry(),
+		}))(t)
+		defer store.Close()
+		f(t, store)
 	})
+	t.Run("memory", func(t *testing.T) {
+		store := must.ReturnT(NewInMemoryBackingStore([]byte(`{"max_events":100}`), AuditorOpts{
+			Registry: prometheus.NewRegistry(),
+		}))(t)
+		defer store.Close()
+		f(t, store)
+	})
+}
 
-	event1 := testEvent("event-1")
+////////////////////////////////////////////////////////////////////////////////
+// Shared tests (all backing store types)
 
-	// Write event
-	mustWrite(t, store, event1)
-	assertFileCount(t, store, 1)
+func TestBackingStoreWriteAndRead(t *testing.T) {
+	testWithEachTypeOfBackingStore(t, func(t *testing.T, store BackingStore) {
+		mustWriteStore(t, store, testEvent("event-1"))
+		mustWriteStore(t, store, testEvent("event-2"))
+		mustWriteStore(t, store, testEvent("event-3"))
 
-	// Read batch
-	events := mustReadBatch(t, store)
-	assert.Equal(t, len(events), 1)
-	assert.Equal(t, events[0].ID, "event-1")
+		events := mustReadBatchStore(t, store)
+		assert.Equal(t, len(events), 3)
+		assert.Equal(t, events[0].ID, "event-1")
+		assert.Equal(t, events[1].ID, "event-2")
+		assert.Equal(t, events[2].ID, "event-3")
 
-	// After commit, file should be gone
-	assertFileCount(t, store, 0)
+		// After commit, should be empty
+		events = mustReadBatchStore(t, store)
+		assert.Equal(t, len(events), 0)
+	})
+}
+
+func TestBackingStoreEmptyRead(t *testing.T) {
+	testWithEachTypeOfBackingStore(t, func(t *testing.T, store BackingStore) {
+		events, commit, err := store.ReadBatch()
+		assert.ErrEqual(t, err, nil)
+
+		if events != nil {
+			t.Errorf("expected nil events, got %d events", len(events))
+		}
+		if commit != nil {
+			t.Errorf("expected nil commit, got non-nil commit function")
+		}
+	})
+}
+
+func TestBackingStoreFIFOOrder(t *testing.T) {
+	testWithEachTypeOfBackingStore(t, func(t *testing.T, store BackingStore) {
+		for i := 1; i <= 10; i++ {
+			mustWriteStore(t, store, testEvent(fmt.Sprintf("event-%d", i)))
+		}
+
+		events := mustReadBatchStore(t, store)
+		assert.Equal(t, len(events), 10)
+
+		for i := range 10 {
+			assert.Equal(t, events[i].ID, fmt.Sprintf("event-%d", i+1))
+		}
+	})
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// File-specific tests
+
+func newTestFileBackingStore(t *testing.T, maxFileSize, maxTotalSize int64) *fileBackingStore {
+	t.Helper()
+	configJSON := fmt.Sprintf(`{"directory":%q,"max_file_size":%d,"max_total_size":%d}`,
+		t.TempDir(), maxFileSize, maxTotalSize)
+	store := must.ReturnT(NewFileBackingStore([]byte(configJSON), AuditorOpts{
+		Registry: prometheus.NewRegistry(),
+	}))(t)
+	return store.(*fileBackingStore)
 }
 
 func TestFileBackingStoreMultipleEventsInSameFile(t *testing.T) {
-	store := newTestBackingStore(t, FileBackingStoreOpts{
-		MaxFileSize: 1024,
-	})
+	store := newTestFileBackingStore(t, 1024, 0)
 
-	mustWrite(t, store, testEvent("event-1"))
-	mustWrite(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
 
 	assertFileCount(t, store, 1)
 
-	events := mustReadBatch(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 2)
 
 	assertFileCount(t, store, 0)
@@ -55,40 +148,40 @@ func TestFileBackingStoreMultipleEventsInSameFile(t *testing.T) {
 
 func TestFileBackingStoreRotation(t *testing.T) {
 	// MaxFileSize of 1 byte forces rotation on every write
-	store := newTestBackingStore(t, FileBackingStoreOpts{
-		MaxFileSize: 1,
-	})
+	store := newTestFileBackingStore(t, 1, 0)
 
-	mustWrite(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-1"))
 	time.Sleep(10 * time.Millisecond) // Ensure unique timestamp
-	mustWrite(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-2"))
 
 	assertFileCount(t, store, 2)
 
 	// Read first batch (oldest file)
-	events := mustReadBatch(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 1)
 	assert.Equal(t, events[0].ID, "event-1")
 
 	assertFileCount(t, store, 1)
 
 	// Read second batch
-	events = mustReadBatch(t, store)
+	events = mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 1)
 	assert.Equal(t, events[0].ID, "event-2")
 
 	assertFileCount(t, store, 0)
 }
 
-func TestBackingStorePermissions(t *testing.T) {
+func TestFileBackingStorePermissions(t *testing.T) {
 	tmpDir := t.TempDir()
-	store := newTestBackingStore(t, FileBackingStoreOpts{
-		Directory: tmpDir,
-	})
+	configJSON := fmt.Sprintf(`{"directory":%q}`, tmpDir)
+	store := must.ReturnT(NewFileBackingStore([]byte(configJSON), AuditorOpts{
+		Registry: prometheus.NewRegistry(),
+	}))(t)
+	fileStore := store.(*fileBackingStore)
 
-	mustWrite(t, store, testEvent("test"))
+	mustWriteStore(t, store, testEvent("test"))
 
-	files := mustListFiles(t, store)
+	files := mustListFiles(t, fileStore)
 	if len(files) != 1 {
 		t.Fatalf("expected 1 file, got %d", len(files))
 	}
@@ -106,20 +199,12 @@ func TestBackingStorePermissions(t *testing.T) {
 	t.Logf("Dir permissions: %o", dirInfo.Mode().Perm())
 }
 
-func mustStat(t *testing.T, path string) os.FileInfo {
-	t.Helper()
-	return must.ReturnT(os.Stat(path))(t)
-}
-
-func TestBackingStoreMaxTotalSize(t *testing.T) {
-	store := newTestBackingStore(t, FileBackingStoreOpts{
-		MaxFileSize:  10,  // Forces rotation on every event for testing
-		MaxTotalSize: 400, // Allows approximately 3 events (~344 bytes total)
-	})
+func TestFileBackingStoreMaxTotalSize(t *testing.T) {
+	store := newTestFileBackingStore(t, 10, 400)
 
 	// Write 3 events
 	for range 3 {
-		mustWrite(t, store, testEvent("event"))
+		mustWriteStore(t, store, testEvent("event"))
 		time.Sleep(10 * time.Millisecond) // Ensure different timestamps
 	}
 
@@ -137,117 +222,36 @@ func TestBackingStoreMaxTotalSize(t *testing.T) {
 	assertFileCount(t, store, 3)
 }
 
-// Test helper types and functions
-
-type FileBackingStoreOpts struct {
-	Directory    string
-	MaxFileSize  int64
-	MaxTotalSize int64
-}
-
-func newTestBackingStore(t *testing.T, opts FileBackingStoreOpts) *FileBackingStore {
-	t.Helper()
-
-	if opts.Directory == "" {
-		opts.Directory = t.TempDir()
-	}
-
-	configJSON := fmt.Sprintf(`{"directory":%q,"max_file_size":%d,"max_total_size":%d}`,
-		opts.Directory, opts.MaxFileSize, opts.MaxTotalSize)
-
-	// Use new factory signature
-	factory := NewFileBackingStore
-	store := must.ReturnT(factory([]byte(configJSON), AuditorOpts{
-		Registry: prometheus.NewRegistry(),
-	}))(t)
-
-	fileStore, ok := store.(*FileBackingStore)
-	if !ok {
-		t.Fatalf("expected *FileBackingStore, got %T", store)
-	}
-
-	return fileStore
-}
-
-func testEvent(id string) cadf.Event {
-	return cadf.Event{
-		ID:        id,
-		EventType: "activity",
-		Action:    "create",
-		Outcome:   "success",
-	}
-}
-
-func mustWrite(t *testing.T, store *FileBackingStore, event cadf.Event) {
-	t.Helper()
-	must.SucceedT(t, store.Write(event))
-}
-
-func mustReadBatch(t *testing.T, store *FileBackingStore) []cadf.Event {
-	t.Helper()
-
-	events, commit, err := store.ReadBatch()
-	must.SucceedT(t, err)
-
-	if commit != nil {
-		must.SucceedT(t, commit())
-	}
-
-	return events
-}
-
-func mustListFiles(t *testing.T, store *FileBackingStore) []string {
+func mustListFiles(t *testing.T, store *fileBackingStore) []string {
 	t.Helper()
 	files, _, err := store.listFiles()
 	must.SucceedT(t, err)
 	return files
 }
 
-func assertFileCount(t *testing.T, store *FileBackingStore, expected int) {
+func assertFileCount(t *testing.T, store *fileBackingStore, expected int) {
 	t.Helper()
-
 	files := mustListFiles(t, store)
 	assert.Equal(t, len(files), expected)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// InMemoryBackingStore tests
-
-// TestMemoryBackingStoreWriteAndRead tests basic write and read operations.
-func TestMemoryBackingStoreWriteAndRead(t *testing.T) {
-	store := newTestMemoryBackingStore(t, MemoryBackingStoreOpts{
-		MaxEvents: 100,
-	})
-	defer store.Close()
-
-	// Write events
-	mustWriteMemory(t, store, testEvent("event-1"))
-	mustWriteMemory(t, store, testEvent("event-2"))
-	mustWriteMemory(t, store, testEvent("event-3"))
-
-	// Read batch (should get all events in FIFO order)
-	events := mustReadBatchMemory(t, store)
-	assert.Equal(t, len(events), 3)
-	assert.Equal(t, events[0].ID, "event-1")
-	assert.Equal(t, events[1].ID, "event-2")
-	assert.Equal(t, events[2].ID, "event-3")
-
-	// Read again (should be empty after commit)
-	events = mustReadBatchMemory(t, store)
-	assert.Equal(t, len(events), 0)
+func mustStat(t *testing.T, path string) os.FileInfo {
+	t.Helper()
+	return must.ReturnT(os.Stat(path))(t)
 }
 
-// TestMemoryBackingStoreMaxEventsLimit tests the max events limit enforcement.
+////////////////////////////////////////////////////////////////////////////////
+// Memory-specific tests
+
 func TestMemoryBackingStoreMaxEventsLimit(t *testing.T) {
-	store := newTestMemoryBackingStore(t, MemoryBackingStoreOpts{
-		MaxEvents: 3,
-	})
+	store := must.ReturnT(NewInMemoryBackingStore([]byte(`{"max_events":3}`), AuditorOpts{
+		Registry: prometheus.NewRegistry(),
+	}))(t)
 	defer store.Close()
 
-	// Write up to the limit
-	mustWriteMemory(t, store, testEvent("event-1"))
-	mustWriteMemory(t, store, testEvent("event-2"))
-	mustWriteMemory(t, store, testEvent("event-3"))
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-3"))
 
 	// Writing beyond the limit should fail
 	err := store.Write(testEvent("event-4"))
@@ -256,94 +260,27 @@ func TestMemoryBackingStoreMaxEventsLimit(t *testing.T) {
 	}
 
 	// After reading and committing, we should be able to write again
-	events := mustReadBatchMemory(t, store)
+	events := mustReadBatchStore(t, store)
 	assert.Equal(t, len(events), 3)
 
-	// Now we should be able to write again
-	mustWriteMemory(t, store, testEvent("event-4"))
+	mustWriteStore(t, store, testEvent("event-4"))
 }
 
-// TestMemoryBackingStoreFIFOOrder tests that events are returned in FIFO order.
-func TestMemoryBackingStoreFIFOOrder(t *testing.T) {
-	store := newTestMemoryBackingStore(t, MemoryBackingStoreOpts{
-		MaxEvents: 100,
-	})
-	defer store.Close()
-
-	// Write events in specific order
-	for i := 1; i <= 10; i++ {
-		mustWriteMemory(t, store, testEvent(fmt.Sprintf("event-%d", i)))
-	}
-
-	// Read all events
-	events := mustReadBatchMemory(t, store)
-	assert.Equal(t, len(events), 10)
-
-	// Verify FIFO order
-	for i := range 10 {
-		expectedID := fmt.Sprintf("event-%d", i+1)
-		assert.Equal(t, events[i].ID, expectedID)
-	}
-}
-
-// TestMemoryBackingStoreDefaultMaxEvents tests the default max events value.
-func TestMemoryBackingStoreDefaultMaxEvents(t *testing.T) {
-	configJSON := `{}`
-
-	factory := NewInMemoryBackingStore
-	store := must.ReturnT(factory([]byte(configJSON), AuditorOpts{
-		Registry: prometheus.NewRegistry(),
+func TestMemoryBackingStoreMetrics(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	store := must.ReturnT(NewInMemoryBackingStore([]byte(`{"max_events":100}`), AuditorOpts{
+		Registry: registry,
 	}))(t)
 	defer store.Close()
 
-	memStore, ok := store.(*InMemoryBackingStore)
-	if !ok {
-		t.Fatalf("expected *InMemoryBackingStore, got %T", store)
-	}
+	mustWriteStore(t, store, testEvent("event-1"))
+	mustWriteStore(t, store, testEvent("event-2"))
+	mustWriteStore(t, store, testEvent("event-3"))
 
-	// Default should be 1000
-	assert.Equal(t, memStore.MaxEvents.UnwrapOr(0), 1000)
-}
-
-// TestMemoryBackingStoreEmptyRead tests reading from an empty store.
-func TestMemoryBackingStoreEmptyRead(t *testing.T) {
-	store := newTestMemoryBackingStore(t, MemoryBackingStoreOpts{
-		MaxEvents: 100,
-	})
-	defer store.Close()
-
-	// Read from empty store
-	events, commit, err := store.ReadBatch()
-	assert.ErrEqual(t, err, nil)
-
-	if events != nil {
-		t.Errorf("expected nil events, got %d events", len(events))
-	}
-	if commit != nil {
-		t.Errorf("expected nil commit, got non-nil commit function")
-	}
-}
-
-// TestMemoryBackingStoreMetrics tests that Prometheus metrics are updated correctly.
-func TestMemoryBackingStoreMetrics(t *testing.T) {
-	registry := prometheus.NewRegistry()
-	store := newTestMemoryBackingStoreWithRegistry(t, MemoryBackingStoreOpts{
-		MaxEvents: 100,
-	}, registry)
-	defer store.Close()
-
-	// Write some events
-	mustWriteMemory(t, store, testEvent("event-1"))
-	mustWriteMemory(t, store, testEvent("event-2"))
-	mustWriteMemory(t, store, testEvent("event-3"))
-
-	// Update metrics
 	must.SucceedT(t, store.UpdateMetrics())
 
-	// Gather metrics
 	metricFamilies := must.ReturnT(registry.Gather())(t)
 
-	// Verify metrics exist
 	assertMetricValue := func(name string, expected float64) {
 		t.Helper()
 		for _, mf := range metricFamilies {
@@ -369,14 +306,12 @@ func TestMemoryBackingStoreMetrics(t *testing.T) {
 	assertGaugeValue("audittools_backing_store_size_bytes", 3)
 }
 
-// TestMemoryBackingStoreConcurrency tests thread safety with concurrent access.
 func TestMemoryBackingStoreConcurrency(t *testing.T) {
-	store := newTestMemoryBackingStore(t, MemoryBackingStoreOpts{
-		MaxEvents: 1000,
-	})
+	store := must.ReturnT(NewInMemoryBackingStore([]byte(`{"max_events":1000}`), AuditorOpts{
+		Registry: prometheus.NewRegistry(),
+	}))(t)
 	defer store.Close()
 
-	// Concurrent writes
 	var wg sync.WaitGroup
 	numGoroutines := 10
 	eventsPerGoroutine := 10
@@ -394,73 +329,17 @@ func TestMemoryBackingStoreConcurrency(t *testing.T) {
 
 	wg.Wait()
 
-	// Read all events
 	events, commit, err := store.ReadBatch()
 	assert.ErrEqual(t, err, nil)
 
-	// Should have all events
 	expectedCount := numGoroutines * eventsPerGoroutine
 	assert.Equal(t, len(events), expectedCount)
 
-	// Commit should work
 	if commit != nil {
 		must.SucceedT(t, commit())
 	}
 
-	// Store should be empty now
 	events, _, err = store.ReadBatch()
 	assert.ErrEqual(t, err, nil)
 	assert.Equal(t, len(events), 0)
-}
-
-// Test helper types and functions for memory backing store
-
-type MemoryBackingStoreOpts struct {
-	MaxEvents int
-}
-
-func newTestMemoryBackingStore(t *testing.T, opts MemoryBackingStoreOpts) *InMemoryBackingStore {
-	t.Helper()
-	return newTestMemoryBackingStoreWithRegistry(t, opts, prometheus.NewRegistry())
-}
-
-func newTestMemoryBackingStoreWithRegistry(t *testing.T, opts MemoryBackingStoreOpts, registry prometheus.Registerer) *InMemoryBackingStore {
-	t.Helper()
-
-	configJSON := fmt.Sprintf(`{"max_events":%d}`, opts.MaxEvents)
-
-	// Use new factory signature
-	factory := NewInMemoryBackingStore
-	store := must.ReturnT(factory([]byte(configJSON), AuditorOpts{
-		Registry: registry,
-	}))(t)
-
-	memStore, ok := store.(*InMemoryBackingStore)
-	if !ok {
-		t.Fatalf("expected *InMemoryBackingStore, got %T", store)
-	}
-
-	return memStore
-}
-
-func mustWriteMemory(t *testing.T, store *InMemoryBackingStore, event cadf.Event) {
-	t.Helper()
-	must.SucceedT(t, store.Write(event))
-}
-
-func mustReadBatchMemory(t *testing.T, store *InMemoryBackingStore) []cadf.Event {
-	t.Helper()
-
-	events, commit, err := store.ReadBatch()
-	must.SucceedT(t, err)
-
-	if commit != nil {
-		must.SucceedT(t, commit())
-	}
-
-	if events == nil {
-		return []cadf.Event{}
-	}
-
-	return events
 }

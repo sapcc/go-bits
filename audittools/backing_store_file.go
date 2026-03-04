@@ -16,7 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/majewsky/gg/option"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-api-declarations/cadf"
 
@@ -34,7 +33,7 @@ import (
 //	    },
 //	})
 func NewFileBackingStore(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
-	var store FileBackingStore
+	var store fileBackingStore
 	if err := json.Unmarshal(params, &store); err != nil {
 		return nil, fmt.Errorf("audittools: failed to parse file backing store config: %w", err)
 	}
@@ -50,17 +49,17 @@ func NewFileBackingStore(params json.RawMessage, opts AuditorOpts) (BackingStore
 	return &store, nil
 }
 
-// FileBackingStore implements BackingStore using local filesystem files.
+// fileBackingStore implements BackingStore using local filesystem files.
 // Provides durable audit buffering for services with persistent volumes.
 //
 // Thread safety: Write() and ReadBatch() are serialized by a mutex.
 // Multiple concurrent calls are safe but will block each other.
 // Callers must ensure that commit() completes before the next ReadBatch() call.
-type FileBackingStore struct {
+type fileBackingStore struct {
 	// Configuration (JSON params)
-	Directory    string               `json:"directory"`
-	MaxFileSize  option.Option[int64] `json:"max_file_size"`
-	MaxTotalSize option.Option[int64] `json:"max_total_size"`
+	Directory    string `json:"directory"`
+	MaxFileSize  int64  `json:"max_file_size"`
+	MaxTotalSize int64  `json:"max_total_size"`
 
 	// Runtime state (not from JSON)
 	mu              sync.Mutex   `json:"-"`
@@ -76,19 +75,16 @@ type FileBackingStore struct {
 }
 
 // Init implements BackingStore.
-func (s *FileBackingStore) Init(registry prometheus.Registerer) error {
+func (s *fileBackingStore) Init(registry prometheus.Registerer) error {
 	if s.Directory == "" {
 		return errors.New("audittools: directory is required for file backing store")
 	}
 
 	// 10 MB per file balances write performance (fewer rotations) with memory usage during reads.
-	// 0 = unlimited total size allows unbounded growth during extended RabbitMQ outages.
-	if s.MaxFileSize.IsNone() {
-		s.MaxFileSize = option.Some[int64](10 * 1024 * 1024)
+	if s.MaxFileSize == 0 {
+		s.MaxFileSize = 10 * 1024 * 1024
 	}
-	if s.MaxTotalSize.IsNone() {
-		s.MaxTotalSize = option.Some[int64](0)
-	}
+	// MaxTotalSize 0 = unlimited, allowing unbounded growth during extended RabbitMQ outages.
 
 	// 0700 permissions prevent other users from reading audit data.
 	if err := os.MkdirAll(s.Directory, 0700); err != nil {
@@ -103,7 +99,7 @@ func (s *FileBackingStore) Init(registry prometheus.Registerer) error {
 	return s.UpdateMetrics()
 }
 
-func (s *FileBackingStore) initializeMetrics(registry prometheus.Registerer) {
+func (s *fileBackingStore) initializeMetrics(registry prometheus.Registerer) {
 	s.writeCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "audittools_backing_store_writes_total",
 		Help: "Total number of audit events written to the backing store.",
@@ -131,7 +127,7 @@ func (s *FileBackingStore) initializeMetrics(registry prometheus.Registerer) {
 }
 
 // Write implements BackingStore.
-func (s *FileBackingStore) Write(event cadf.Event) error {
+func (s *fileBackingStore) Write(event cadf.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -142,8 +138,8 @@ func (s *FileBackingStore) Write(event cadf.Event) error {
 	s.currentFile = targetFile
 
 	// Enforce size limit before write to prevent unbounded growth during extended outages.
-	if maxTotalSize, ok := s.MaxTotalSize.Unpack(); ok && maxTotalSize > 0 {
-		if err := s.checkTotalSizeLimit(maxTotalSize); err != nil {
+	if s.MaxTotalSize > 0 {
+		if err := s.checkTotalSizeLimit(); err != nil {
 			s.errorCounter.WithLabelValues("write_full").Inc()
 			return fmt.Errorf("audittools: failed to write to backing store: %w", err)
 		}
@@ -160,7 +156,7 @@ func (s *FileBackingStore) Write(event cadf.Event) error {
 }
 
 // ReadBatch implements BackingStore.
-func (s *FileBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
+func (s *fileBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -191,7 +187,7 @@ func (s *FileBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 }
 
 // UpdateMetrics implements BackingStore.
-func (s *FileBackingStore) UpdateMetrics() error {
+func (s *fileBackingStore) UpdateMetrics() error {
 	files, totalSize, err := s.listFiles()
 	if err != nil {
 		return err
@@ -206,11 +202,11 @@ func (s *FileBackingStore) UpdateMetrics() error {
 }
 
 // Close implements BackingStore.
-func (s *FileBackingStore) Close() error {
+func (s *fileBackingStore) Close() error {
 	return nil
 }
 
-func (s *FileBackingStore) getCurrentOrRotatedFile() (string, error) {
+func (s *fileBackingStore) getCurrentOrRotatedFile() (string, error) {
 	if s.currentFile == "" {
 		return s.newFileName(), nil
 	}
@@ -224,7 +220,7 @@ func (s *FileBackingStore) getCurrentOrRotatedFile() (string, error) {
 	return s.currentFile, nil
 }
 
-func (s *FileBackingStore) needsRotation(path string) (bool, error) {
+func (s *fileBackingStore) needsRotation(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return true, nil
@@ -233,19 +229,18 @@ func (s *FileBackingStore) needsRotation(path string) (bool, error) {
 		s.errorCounter.WithLabelValues("write_stat").Inc()
 		return false, fmt.Errorf("audittools: failed to stat backing store file: %w", err)
 	}
-	maxFileSize := s.MaxFileSize.UnwrapOr(10 * 1024 * 1024)
-	return info.Size() >= maxFileSize, nil
+	return info.Size() >= s.MaxFileSize, nil
 }
 
 // newFileName generates a new file name with unique timestamp.
 // Nanosecond precision ensures uniqueness even with rapid rotation.
-func (s *FileBackingStore) newFileName() string {
+func (s *fileBackingStore) newFileName() string {
 	return filepath.Join(s.Directory, fmt.Sprintf("audit-events-%d.jsonl", time.Now().UnixNano()))
 }
 
 // writeEventToFile writes a CADF event to the specified file with fsync.
 // fsync ensures audit data survives system crashes, as required for compliance.
-func (s *FileBackingStore) writeEventToFile(filePath string, event cadf.Event) (int64, error) {
+func (s *fileBackingStore) writeEventToFile(filePath string, event cadf.Event) (int64, error) {
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_open").Inc()
@@ -276,17 +271,17 @@ func (s *FileBackingStore) writeEventToFile(filePath string, event cadf.Event) (
 	return eventSize, nil
 }
 
-func (s *FileBackingStore) checkTotalSizeLimit(maxTotalSize int64) error {
+func (s *fileBackingStore) checkTotalSizeLimit() error {
 	currentSize := s.cachedTotalSize.Load()
-	if currentSize < maxTotalSize {
+	if currentSize < s.MaxTotalSize {
 		return nil
 	}
-	return fmt.Errorf("%w: current size %d exceeds limit %d", ErrBackingStoreFull, currentSize, maxTotalSize)
+	return fmt.Errorf("%w: current size %d exceeds limit %d", ErrBackingStoreFull, currentSize, s.MaxTotalSize)
 }
 
 // readEventsFromFile reads all events from a file, handling corrupted entries.
 // Corrupted events are moved to dead-letter files rather than discarded to preserve audit data.
-func (s *FileBackingStore) readEventsFromFile(path string) ([]cadf.Event, error) {
+func (s *fileBackingStore) readEventsFromFile(path string) ([]cadf.Event, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		s.errorCounter.WithLabelValues("read_open").Inc()
@@ -314,7 +309,7 @@ func (s *FileBackingStore) readEventsFromFile(path string) ([]cadf.Event, error)
 	return events, nil
 }
 
-func (s *FileBackingStore) makeCommitFunc(path string) func() error {
+func (s *fileBackingStore) makeCommitFunc(path string) func() error {
 	return func() error {
 		fileSize := getFileSize(path)
 
@@ -333,7 +328,7 @@ func (s *FileBackingStore) makeCommitFunc(path string) func() error {
 
 // writeDeadLetter writes a corrupted event to a dead-letter file for manual investigation.
 // Preserves corrupted audit data for forensic analysis rather than silent data loss.
-func (s *FileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile string) error {
+func (s *fileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile string) error {
 	// Timestamp-based naming allows multiple dead-letter files for rotation and cleanup.
 	deadLetterFile := filepath.Join(s.Directory, fmt.Sprintf("audit-events-deadletter-%d.jsonl", time.Now().UnixNano()))
 
@@ -378,7 +373,7 @@ func (s *FileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 // listFiles returns all event files in the backing store directory, sorted by name,
 // along with their combined size. Sorted by name ensures FIFO processing since
 // filenames contain timestamps. Size is computed from DirEntry to avoid redundant stat calls.
-func (s *FileBackingStore) listFiles() (files []string, totalSize int64, err error) {
+func (s *fileBackingStore) listFiles() (files []string, totalSize int64, err error) {
 	entries, err := os.ReadDir(s.Directory)
 	if err != nil {
 		return nil, 0, fmt.Errorf("audittools: failed to read backing store directory: %w", err)
@@ -399,7 +394,7 @@ func (s *FileBackingStore) listFiles() (files []string, totalSize int64, err err
 	return files, totalSize, nil
 }
 
-func (s *FileBackingStore) handleCorruptedEvent(corruptedLine []byte, sourceFile string) {
+func (s *fileBackingStore) handleCorruptedEvent(corruptedLine []byte, sourceFile string) {
 	if err := s.writeDeadLetter(corruptedLine, sourceFile); err != nil {
 		logg.Error("audittools: failed to write to dead-letter file: %s", err.Error())
 		s.errorCounter.WithLabelValues("deadletter_write_failed").Inc()
