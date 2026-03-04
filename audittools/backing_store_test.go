@@ -342,32 +342,29 @@ func TestMemoryBackingStoreMetrics(t *testing.T) {
 	metricFamilies := must.ReturnT(registry.Gather())(t)
 
 	// Verify metrics exist
-	foundWrite := false
-	foundSize := false
-
-	for _, mf := range metricFamilies {
-		switch mf.GetName() {
-		case "audittools_backing_store_writes_total":
-			foundWrite = true
-			// Should have 3 writes
-			if mf.GetMetric()[0].GetCounter().GetValue() != 3 {
-				t.Errorf("expected 3 writes, got %f", mf.GetMetric()[0].GetCounter().GetValue())
-			}
-		case "audittools_backing_store_size_bytes":
-			foundSize = true
-			// Should have 3 events in store
-			if mf.GetMetric()[0].GetGauge().GetValue() != 3 {
-				t.Errorf("expected size 3, got %f", mf.GetMetric()[0].GetGauge().GetValue())
+	assertMetricValue := func(name string, expected float64) {
+		t.Helper()
+		for _, mf := range metricFamilies {
+			if mf.GetName() == name {
+				assert.Equal(t, mf.GetMetric()[0].GetCounter().GetValue(), expected)
+				return
 			}
 		}
+		t.Errorf("metric %q not found", name)
+	}
+	assertGaugeValue := func(name string, expected float64) {
+		t.Helper()
+		for _, mf := range metricFamilies {
+			if mf.GetName() == name {
+				assert.Equal(t, mf.GetMetric()[0].GetGauge().GetValue(), expected)
+				return
+			}
+		}
+		t.Errorf("metric %q not found", name)
 	}
 
-	if !foundWrite {
-		t.Error("write counter metric not found")
-	}
-	if !foundSize {
-		t.Error("size gauge metric not found")
-	}
+	assertMetricValue("audittools_backing_store_writes_total", 3)
+	assertGaugeValue("audittools_backing_store_size_bytes", 3)
 }
 
 // TestMemoryBackingStoreConcurrency tests thread safety with concurrent access.

@@ -128,10 +128,10 @@ func (s *InMemoryBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 		// Remove only the events that were part of this batch.
 		// Events appended by concurrent Write() calls are preserved.
 		s.events = append([]cadf.Event(nil), s.events[count:]...)
+		s.readCounter.Add(float64(count))
 		return nil
 	}
 
-	s.readCounter.Add(float64(len(eventsCopy)))
 	return eventsCopy, commit, nil
 }
 

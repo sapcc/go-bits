@@ -111,7 +111,7 @@ func (s *SQLBackingStore) Init(registry prometheus.Registerer) error {
 	// Validate table name before ANY SQL operations to prevent injection attacks.
 	// Regex ensures PostgreSQL identifier rules: start with letter/underscore, followed by alphanumeric/underscores.
 	// This validation makes string concatenation safe in SQL construction.
-	if !isValidSQLIdentifier(s.TableName) {
+	if !sqlIdentifierRegex.MatchString(s.TableName) {
 		return fmt.Errorf("audittools: invalid table name: %q", s.TableName)
 	}
 
@@ -295,14 +295,4 @@ func (s *SQLBackingStore) countEvents() (int64, error) {
 	}
 
 	return count, nil
-}
-
-// isValidSQLIdentifier validates that a string is a safe SQL identifier.
-// Prevents SQL injection attacks when table names come from configuration.
-// Enforces PostgreSQL identifier rules: start with letter or underscore, followed by alphanumeric or underscores.
-func isValidSQLIdentifier(name string) bool {
-	if name == "" {
-		return false
-	}
-	return sqlIdentifierRegex.MatchString(name)
 }
