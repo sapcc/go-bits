@@ -384,8 +384,7 @@ func TestMemoryBackingStoreConcurrency(t *testing.T) {
 
 	wg.Add(numGoroutines)
 	for i := range numGoroutines {
-		go func(routineID int) {
-			defer wg.Done()
+		wg.Go(func() {
 			for j := range eventsPerGoroutine {
 				eventID := fmt.Sprintf("routine-%d-event-%d", routineID, j)
 				if err := store.Write(testEvent(eventID)); err != nil {
