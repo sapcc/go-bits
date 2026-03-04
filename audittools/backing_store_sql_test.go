@@ -36,34 +36,6 @@ func emptyMigration() easypg.Configuration {
 	}
 }
 
-// TestSQLBackingStoreWriteAndRead tests basic write and read operations.
-func TestSQLBackingStoreWriteAndRead(t *testing.T) {
-	db := easypg.ConnectForTest(t, emptyMigration())
-	defer db.Close()
-
-	store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
-		BatchSize: 10,
-		MaxEvents: 100,
-	})
-	defer store.Close()
-
-	// Write events
-	mustWriteStore(t, store, testEvent("event-1"))
-	mustWriteStore(t, store, testEvent("event-2"))
-	mustWriteStore(t, store, testEvent("event-3"))
-
-	// Read batch (should get all events in FIFO order)
-	events := mustReadBatchStore(t, store)
-	assert.Equal(t, len(events), 3)
-	assert.Equal(t, events[0].ID, "event-1")
-	assert.Equal(t, events[1].ID, "event-2")
-	assert.Equal(t, events[2].ID, "event-3")
-
-	// Read again (should be empty after commit)
-	events = mustReadBatchStore(t, store)
-	assert.Equal(t, len(events), 0)
-}
-
 // TestSQLBackingStoreMaxEventsLimit tests the max events limit enforcement.
 func TestSQLBackingStoreMaxEventsLimit(t *testing.T) {
 	db := easypg.ConnectForTest(t, emptyMigration())

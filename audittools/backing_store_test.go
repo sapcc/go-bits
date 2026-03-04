@@ -14,6 +14,7 @@ import (
 	"github.com/sapcc/go-api-declarations/cadf"
 
 	"github.com/sapcc/go-bits/assert"
+	"github.com/sapcc/go-bits/easypg"
 	"github.com/sapcc/go-bits/must"
 )
 
@@ -51,21 +52,31 @@ func mustReadBatchStore(t *testing.T, store BackingStore) []cadf.Event {
 	return events
 }
 
-func testWithEachTypeOfBackingStore(t *testing.T, f func(*testing.T, BackingStore)) {
-	t.Run("file", func(t *testing.T) {
+func testWithEachTypeOfStore(t *testing.T, action func(*testing.T, BackingStore)) {
+	t.Run("with file store", func(t *testing.T) {
 		configJSON := fmt.Sprintf(`{"directory":%q,"max_file_size":10240}`, t.TempDir())
 		store := must.ReturnT(NewFileBackingStore([]byte(configJSON), AuditorOpts{
 			Registry: prometheus.NewRegistry(),
 		}))(t)
 		defer store.Close()
-		f(t, store)
+		action(t, store)
 	})
-	t.Run("memory", func(t *testing.T) {
+	t.Run("with memory store", func(t *testing.T) {
 		store := must.ReturnT(NewInMemoryBackingStore([]byte(`{"max_events":100}`), AuditorOpts{
 			Registry: prometheus.NewRegistry(),
 		}))(t)
 		defer store.Close()
-		f(t, store)
+		action(t, store)
+	})
+	t.Run("with PostgreSQL store", func(t *testing.T) {
+		db := easypg.ConnectForTest(t, emptyMigration())
+		defer db.Close()
+		store := newTestSQLBackingStore(t, db, sqlBackingStoreOpts{
+			BatchSize: 100,
+			MaxEvents: 100,
+		})
+		defer store.Close()
+		action(t, store)
 	})
 }
 
@@ -73,7 +84,7 @@ func testWithEachTypeOfBackingStore(t *testing.T, f func(*testing.T, BackingStor
 // Shared tests (all backing store types)
 
 func TestBackingStoreWriteAndRead(t *testing.T) {
-	testWithEachTypeOfBackingStore(t, func(t *testing.T, store BackingStore) {
+	testWithEachTypeOfStore(t, func(t *testing.T, store BackingStore) {
 		mustWriteStore(t, store, testEvent("event-1"))
 		mustWriteStore(t, store, testEvent("event-2"))
 		mustWriteStore(t, store, testEvent("event-3"))
@@ -91,7 +102,7 @@ func TestBackingStoreWriteAndRead(t *testing.T) {
 }
 
 func TestBackingStoreEmptyRead(t *testing.T) {
-	testWithEachTypeOfBackingStore(t, func(t *testing.T, store BackingStore) {
+	testWithEachTypeOfStore(t, func(t *testing.T, store BackingStore) {
 		events, commit, err := store.ReadBatch()
 		assert.ErrEqual(t, err, nil)
 
@@ -105,7 +116,7 @@ func TestBackingStoreEmptyRead(t *testing.T) {
 }
 
 func TestBackingStoreFIFOOrder(t *testing.T) {
-	testWithEachTypeOfBackingStore(t, func(t *testing.T, store BackingStore) {
+	testWithEachTypeOfStore(t, func(t *testing.T, store BackingStore) {
 		for i := 1; i <= 10; i++ {
 			mustWriteStore(t, store, testEvent(fmt.Sprintf("event-%d", i)))
 		}
