@@ -68,7 +68,7 @@ func (s *InMemoryBackingStore) Init(registry prometheus.Registerer) error {
 	}
 
 	s.initializeMetrics(registry)
-	return nil
+	return s.UpdateMetrics()
 }
 
 func (s *InMemoryBackingStore) initializeMetrics(registry prometheus.Registerer) {

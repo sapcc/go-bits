@@ -122,7 +122,7 @@ func (s *SQLBackingStore) Init(registry prometheus.Registerer) error {
 	}
 
 	s.initializeMetrics(registry)
-	return nil
+	return s.UpdateMetrics()
 }
 
 func (s *SQLBackingStore) ensureTableExists() error {

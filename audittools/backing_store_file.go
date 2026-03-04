@@ -96,9 +96,7 @@ func (s *FileBackingStore) Init(registry prometheus.Registerer) error {
 	}
 
 	s.initializeMetrics(registry)
-	s.initializeCachedSize()
-
-	return nil
+	return s.UpdateMetrics()
 }
 
 func (s *FileBackingStore) initializeMetrics(registry prometheus.Registerer) {
@@ -126,18 +124,6 @@ func (s *FileBackingStore) initializeMetrics(registry prometheus.Registerer) {
 	if registry != nil {
 		registry.MustRegister(s.writeCounter, s.readCounter, s.errorCounter, s.sizeGauge, s.fileGauge)
 	}
-}
-
-// initializeCachedSize calculates the initial total size from existing files.
-// Enables fast size checks during Write() without filesystem calls on every operation.
-func (s *FileBackingStore) initializeCachedSize() {
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-
-	totalSize := s.calculateTotalSize(files)
-	s.cachedTotalSize.Store(totalSize)
 }
 
 // Write implements BackingStore.
@@ -263,10 +249,10 @@ func (s *FileBackingStore) writeEventToFile(filePath string, event cadf.Event) (
 		s.errorCounter.WithLabelValues("write_open").Inc()
 		return 0, fmt.Errorf("audittools: failed to open backing store file: %w", err)
 	}
+	defer f.Close()
 
 	b, err := json.Marshal(event)
 	if err != nil {
-		f.Close()
 		s.errorCounter.WithLabelValues("write_marshal").Inc()
 		return 0, fmt.Errorf("audittools: failed to marshal event: %w", err)
 	}
@@ -275,21 +261,14 @@ func (s *FileBackingStore) writeEventToFile(filePath string, event cadf.Event) (
 
 	_, err = f.Write(append(b, '\n'))
 	if err != nil {
-		f.Close()
 		s.errorCounter.WithLabelValues("write_io").Inc()
 		return 0, fmt.Errorf("audittools: failed to write to backing store: %w", err)
 	}
 
 	// fsync required for audit compliance - data must survive system crashes.
 	if err := f.Sync(); err != nil {
-		f.Close()
 		s.errorCounter.WithLabelValues("write_sync").Inc()
 		return 0, fmt.Errorf("audittools: failed to sync backing store file: %w", err)
-	}
-
-	if err := f.Close(); err != nil {
-		s.errorCounter.WithLabelValues("write_close").Inc()
-		return 0, fmt.Errorf("audittools: failed to close backing store file: %w", err)
 	}
 
 	return eventSize, nil
@@ -360,6 +339,7 @@ func (s *FileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 	if err != nil {
 		return fmt.Errorf("audittools: failed to open dead-letter file: %w", err)
 	}
+	defer f.Close()
 
 	// Include metadata alongside corrupted data to enable investigation and recovery.
 	entry := struct {
@@ -376,24 +356,17 @@ func (s *FileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 
 	b, err := json.Marshal(entry)
 	if err != nil {
-		f.Close()
 		return fmt.Errorf("audittools: failed to marshal dead-letter entry: %w", err)
 	}
 
 	_, err = f.Write(append(b, '\n'))
 	if err != nil {
-		f.Close()
 		return fmt.Errorf("audittools: failed to write to dead-letter file: %w", err)
 	}
 
 	// fsync dead-letter files - corrupted audit data still requires durability guarantees.
 	if err := f.Sync(); err != nil {
-		f.Close()
 		return fmt.Errorf("audittools: failed to sync dead-letter file: %w", err)
-	}
-
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("audittools: failed to close dead-letter file: %w", err)
 	}
 
 	s.errorCounter.WithLabelValues("deadletter_write").Inc()
