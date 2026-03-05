@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	_ "github.com/lib/pq"
@@ -132,21 +133,16 @@ func TestSQLBackingStoreConcurrency(t *testing.T) {
 	defer store.Close()
 
 	// Write events concurrently
-	done := make(chan bool)
+	var wg sync.WaitGroup
 	for i := range 10 {
-		go func(id int) {
-			err := store.Write(testEvent(fmt.Sprintf("event-%d", id)))
+		wg.Go(func() {
+			err := store.Write(testEvent(fmt.Sprintf("event-%d", i)))
 			if err != nil {
 				t.Errorf("concurrent write failed: %v", err)
 			}
-			done <- true
-		}(i)
+		})
 	}
-
-	// Wait for all writes
-	for range 10 {
-		<-done
-	}
+	wg.Wait()
 
 	// Read all events
 	events := mustReadBatchStore(t, store)
