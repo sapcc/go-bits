@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -155,43 +156,40 @@ func TestSQLBackingStoreTableNameValidation(t *testing.T) {
 	defer db.Close()
 
 	// Invalid table names should be rejected
-	invalidNames := []string{
+	for _, tableName := range []string{
 		"audit_events; DROP TABLE users;",
 		"audit-events",
 		"audit.events",
 		"123_events",
-	}
-
-	for _, tableName := range invalidNames {
-		configJSON := fmt.Sprintf(`{"table_name":%q}`, tableName)
-		factory := SQLBackingStoreFactoryWithPostgresDB(db)
-		_, err := factory(json.RawMessage(configJSON), AuditorOpts{
-			Registry: prometheus.NewRegistry(),
+	} {
+		t.Run("invalid/"+tableName, func(t *testing.T) {
+			configJSON := fmt.Sprintf(`{"table_name":%q}`, tableName)
+			factory := SQLBackingStoreFactoryWithPostgresDB(db)
+			_, err := factory(json.RawMessage(configJSON), AuditorOpts{
+				Registry: prometheus.NewRegistry(),
+			})
+			assert.ErrEqual(t, err, regexp.MustCompile("invalid table name"))
 		})
-		if err == nil {
-			t.Errorf("expected error for invalid table name %q, got nil", tableName)
-		}
 	}
 
 	// Valid table names should be accepted
-	validNames := []string{
+	for _, tableName := range []string{
 		"audit_events",
 		"AuditEvents",
 		"_audit_events",
 		"audit_events_123",
-	}
-
-	for _, tableName := range validNames {
-		configJSON := fmt.Sprintf(`{"table_name":%q}`, tableName)
-		factory := SQLBackingStoreFactoryWithPostgresDB(db)
-		store, err := factory(json.RawMessage(configJSON), AuditorOpts{
-			Registry: prometheus.NewRegistry(),
+	} {
+		t.Run("valid/"+tableName, func(t *testing.T) {
+			configJSON := fmt.Sprintf(`{"table_name":%q}`, tableName)
+			factory := SQLBackingStoreFactoryWithPostgresDB(db)
+			store, err := factory(json.RawMessage(configJSON), AuditorOpts{
+				Registry: prometheus.NewRegistry(),
+			})
+			assert.ErrEqual(t, err, nil)
+			if store != nil {
+				store.Close()
+			}
 		})
-		if err != nil {
-			t.Errorf("expected no error for valid table name %q, got: %v", tableName, err)
-			continue
-		}
-		store.Close()
 	}
 }
 
