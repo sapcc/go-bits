@@ -124,6 +124,17 @@ func (s *fileBackingStore) initializeMetrics(registry prometheus.Registerer) {
 	if registry != nil {
 		registry.MustRegister(s.writeCounter, s.readCounter, s.errorCounter, s.sizeGauge, s.fileGauge)
 	}
+
+	// Pre-initialize all known error counter label values so that
+	// absent-metrics-operator does not complain about missing timeseries.
+	for _, op := range []string{
+		"write_full", "write_stat", "write_open", "write_marshal", "write_io", "write_sync",
+		"read_open", "read_scan",
+		"commit_remove",
+		"corrupted_event", "deadletter_write", "deadletter_write_failed",
+	} {
+		s.errorCounter.WithLabelValues(op).Add(0)
+	}
 }
 
 // Write implements BackingStore.
