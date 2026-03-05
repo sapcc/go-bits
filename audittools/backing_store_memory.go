@@ -13,6 +13,13 @@ import (
 	"github.com/sapcc/go-api-declarations/cadf"
 )
 
+// inMemoryBackingStoreParams holds the JSON-parsed configuration with Option[T]
+// for optional fields. Values are resolved at parse time via UnwrapOr() into
+// the runtime struct (inMemoryBackingStore), so methods never handle the None case.
+type inMemoryBackingStoreParams struct {
+	MaxEvents option.Option[int] `json:"max_events"`
+}
+
 // NewInMemoryBackingStore creates an in-memory backing store from JSON parameters.
 // This is the factory function for use in AuditorOpts.BackingStoreFactories.
 //
@@ -24,9 +31,12 @@ import (
 //	    },
 //	})
 func NewInMemoryBackingStore(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
-	var store inMemoryBackingStore
-	if err := json.Unmarshal(params, &store); err != nil {
-		return nil, fmt.Errorf("audittools: failed to parse memory backing store config: %w", err)
+	var cfg inMemoryBackingStoreParams
+	if err := json.Unmarshal(params, &cfg); err != nil {
+		return nil, fmt.Errorf("audittools: cannot parse memory backing store config: %w", err)
+	}
+	store := inMemoryBackingStore{
+		maxEvents: cfg.MaxEvents.UnwrapOr(1000),
 	}
 
 	registry := opts.Registry
@@ -47,17 +57,17 @@ func NewInMemoryBackingStore(params json.RawMessage, opts AuditorOpts) (BackingS
 // Thread safety: Write() and ReadBatch() are serialized by a mutex.
 // Multiple concurrent calls are safe but will block each other.
 type inMemoryBackingStore struct {
-	// Configuration (JSON params)
-	MaxEvents option.Option[int] `json:"max_events"`
+	// Configuration (resolved at parse time from Option[T])
+	maxEvents int
 
-	// Runtime state (not from JSON)
-	mu     sync.Mutex   `json:"-"`
-	events []cadf.Event `json:"-"`
+	// Runtime state
+	mu     sync.Mutex
+	events []cadf.Event
 
 	// Metrics (initialized in Init)
-	writeCounter prometheus.Counter `json:"-"`
-	readCounter  prometheus.Counter `json:"-"`
-	sizeGauge    prometheus.Gauge   `json:"-"`
+	writeCounter prometheus.Counter
+	readCounter  prometheus.Counter
+	sizeGauge    prometheus.Gauge
 }
 
 // Init implements BackingStore.
@@ -90,9 +100,8 @@ func (s *inMemoryBackingStore) Write(event cadf.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	maxEvents := s.MaxEvents.UnwrapOr(1000)
-	if len(s.events) >= maxEvents {
-		return fmt.Errorf("%w: current size %d exceeds limit %d", ErrBackingStoreFull, len(s.events), maxEvents)
+	if len(s.events) >= s.maxEvents {
+		return fmt.Errorf("%w: current size %d exceeds limit %d", ErrBackingStoreFull, len(s.events), s.maxEvents)
 	}
 
 	s.events = append(s.events, event)

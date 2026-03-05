@@ -50,7 +50,7 @@ func (t auditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQue
 		err := rc.PublishEvent(ctx, e)
 		if err != nil {
 			t.OnFailedPublish()
-			logg.Error("audittools: failed to publish audit event with ID %q: %s", e.ID, err.Error())
+			logg.Error("audittools: cannot publish audit event with ID %q: %s", e.ID, err.Error())
 			return false
 		}
 		t.OnSuccessfulPublish()
@@ -86,14 +86,14 @@ func (t auditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQue
 
 			if !sendEvent(&e) {
 				if err := t.BackingStore.Write(e); err != nil {
-					logg.Error("audittools: failed to write to backing store: %s", err.Error())
+					logg.Error("audittools: cannot write to backing store: %s", err.Error())
 					// Backing store is likely full. Apply backpressure to prevent data loss.
 					backingStoreFull = true
 				}
 			}
 		case <-metricsTicker.C:
 			if err := t.BackingStore.UpdateMetrics(); err != nil {
-				logg.Error("audittools: failed to update backing store metrics: %s", err.Error())
+				logg.Error("audittools: cannot update backing store metrics: %s", err.Error())
 			}
 		case <-drainTicker.C:
 			// Drain backing store and resume reading from EventSink if successful
@@ -136,7 +136,7 @@ func (t auditTrail) drainBackingStore(sendEvent func(*cadf.Event) bool) bool {
 		select {
 		case e := <-t.EventSink:
 			if err := t.BackingStore.Write(e); err != nil {
-				logg.Error("audittools: failed to write to backing store during drain: %s", err.Error())
+				logg.Error("audittools: cannot write to backing store during drain: %s", err.Error())
 			}
 		default:
 			// No new events, continue draining
@@ -145,7 +145,7 @@ func (t auditTrail) drainBackingStore(sendEvent func(*cadf.Event) bool) bool {
 		// Read and send one batch from backing store
 		events, commit, err := t.BackingStore.ReadBatch()
 		if err != nil {
-			logg.Error("audittools: failed to read from backing store: %s", err.Error())
+			logg.Error("audittools: cannot read from backing store: %s", err.Error())
 			return anyBatchDrained
 		}
 
@@ -153,7 +153,7 @@ func (t auditTrail) drainBackingStore(sendEvent func(*cadf.Event) bool) bool {
 			// Empty batch - commit to clean up corrupted/empty files
 			if commit != nil {
 				if err := commit(); err != nil {
-					logg.Error("audittools: failed to commit empty batch: %s", err.Error())
+					logg.Error("audittools: cannot commit empty batch: %s", err.Error())
 				}
 			}
 			return anyBatchDrained
@@ -166,7 +166,7 @@ func (t auditTrail) drainBackingStore(sendEvent func(*cadf.Event) bool) bool {
 			select {
 			case newEvent := <-t.EventSink:
 				if err := t.BackingStore.Write(newEvent); err != nil {
-					logg.Error("audittools: failed to write to backing store during drain: %s", err.Error())
+					logg.Error("audittools: cannot write to backing store during drain: %s", err.Error())
 				}
 			default:
 			}
@@ -184,7 +184,7 @@ func (t auditTrail) drainBackingStore(sendEvent func(*cadf.Event) bool) bool {
 
 		// Commit successful batch
 		if err := commit(); err != nil {
-			logg.Error("audittools: failed to commit to backing store: %s", err.Error())
+			logg.Error("audittools: cannot commit to backing store: %s", err.Error())
 		}
 
 		anyBatchDrained = true

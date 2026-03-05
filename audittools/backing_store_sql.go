@@ -20,6 +20,16 @@ import (
 
 var sqlIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
+// sqlBackingStoreParams holds the JSON-parsed configuration with Option[T]
+// for optional fields. Values are resolved at parse time via UnwrapOr() into
+// the runtime struct (sqlBackingStore), so methods never handle the None case.
+type sqlBackingStoreParams struct {
+	TableName     string             `json:"table_name"`
+	BatchSize     option.Option[int] `json:"batch_size"`
+	MaxEvents     option.Option[int] `json:"max_events"`
+	SkipMigration bool               `json:"skip_migration"`
+}
+
 // sqlBackingStore implements BackingStore using a PostgreSQL database.
 // Suitable for services that already have a database connection and want to avoid managing filesystem volumes.
 // Leverages existing database infrastructure for audit buffering without additional operational complexity.
@@ -41,18 +51,18 @@ var sqlIdentifierRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 // SQLBackingStoreFactoryWithPostgresDB to avoid creating duplicate connection pools
 // (each PostgreSQL process should maintain only one connection pool per database).
 type sqlBackingStore struct {
-	// Configuration (JSON params)
-	TableName     string             `json:"table_name"`     // Table name (default: "audit_events")
-	BatchSize     option.Option[int] `json:"batch_size"`     // Number of events per batch (default: 100)
-	MaxEvents     option.Option[int] `json:"max_events"`     // Maximum total events to buffer (default: 10000)
-	SkipMigration bool               `json:"skip_migration"` // Skip automatic table creation (default: false)
+	// Configuration (resolved at parse time from Option[T])
+	TableName     string
+	BatchSize     int
+	MaxEvents     int
+	SkipMigration bool
 
-	// Runtime state (not from JSON)
-	db           *sql.DB                `json:"-"`
-	writeCounter prometheus.Counter     `json:"-"`
-	readCounter  prometheus.Counter     `json:"-"`
-	errorCounter *prometheus.CounterVec `json:"-"`
-	sizeGauge    prometheus.Gauge       `json:"-"`
+	// Runtime state
+	db           *sql.DB
+	writeCounter prometheus.Counter
+	readCounter  prometheus.Counter
+	errorCounter *prometheus.CounterVec
+	sizeGauge    prometheus.Gauge
 }
 
 // SQLBackingStoreFactoryWithPostgresDB returns a factory that creates SQL backing stores using
@@ -72,11 +82,17 @@ type sqlBackingStore struct {
 //	})
 func SQLBackingStoreFactoryWithPostgresDB(db *sql.DB) BackingStoreFactory {
 	return func(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
-		var store sqlBackingStore
-		if err := json.Unmarshal(params, &store); err != nil {
-			return nil, fmt.Errorf("audittools: failed to parse SQL backing store config: %w", err)
+		var cfg sqlBackingStoreParams
+		if err := json.Unmarshal(params, &cfg); err != nil {
+			return nil, fmt.Errorf("audittools: cannot parse SQL backing store config: %w", err)
 		}
-		store.db = db
+		store := sqlBackingStore{
+			TableName:     cfg.TableName,
+			BatchSize:     cfg.BatchSize.UnwrapOr(100),
+			MaxEvents:     cfg.MaxEvents.UnwrapOr(10000),
+			SkipMigration: cfg.SkipMigration,
+			db:            db,
+		}
 
 		registry := opts.Registry
 		if registry == nil {
@@ -109,7 +125,7 @@ func (s *sqlBackingStore) Init(registry prometheus.Registerer) error {
 
 	if !s.SkipMigration {
 		if err := s.ensureTableExists(); err != nil {
-			return fmt.Errorf("audittools: failed to create table: %w", err)
+			return fmt.Errorf("audittools: cannot create table: %w", err)
 		}
 	}
 
@@ -166,22 +182,21 @@ func (s *sqlBackingStore) initializeMetrics(registry prometheus.Registerer) {
 
 // Write implements BackingStore.
 func (s *sqlBackingStore) Write(event cadf.Event) error {
-	maxEvents := s.MaxEvents.UnwrapOr(10000)
 	count, err := s.countEvents()
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_count").Inc()
-		return fmt.Errorf("audittools: failed to check event count: %w", err)
+		return fmt.Errorf("audittools: cannot check event count: %w", err)
 	}
 
-	if count >= int64(maxEvents) {
+	if count >= int64(s.MaxEvents) {
 		s.errorCounter.WithLabelValues("write_full").Inc()
-		return fmt.Errorf("%w: current size %d exceeds limit %d", ErrBackingStoreFull, count, maxEvents)
+		return fmt.Errorf("%w: current size %d exceeds limit %d", ErrBackingStoreFull, count, s.MaxEvents)
 	}
 
 	eventData, err := json.Marshal(event)
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_marshal").Inc()
-		return fmt.Errorf("audittools: failed to marshal event: %w", err)
+		return fmt.Errorf("audittools: cannot marshal event: %w", err)
 	}
 
 	// String concatenation safe after Init() table name validation (prevents SQL injection).
@@ -190,7 +205,7 @@ func (s *sqlBackingStore) Write(event cadf.Event) error {
 	query := "INSERT INTO " + s.TableName + " (event_data) VALUES ($1)"
 	if _, err := s.db.Exec(query, eventData); err != nil {
 		s.errorCounter.WithLabelValues("write_insert").Inc()
-		return fmt.Errorf("audittools: failed to insert event: %w", err)
+		return fmt.Errorf("audittools: cannot insert event: %w", err)
 	}
 
 	s.writeCounter.Inc()
@@ -199,15 +214,14 @@ func (s *sqlBackingStore) Write(event cadf.Event) error {
 
 // ReadBatch implements BackingStore.
 func (s *sqlBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
-	batchSize := s.BatchSize.UnwrapOr(100)
 	// String concatenation safe after Init() validation. ORDER BY uses index for efficient FIFO reads.
 	query := "SELECT id, event_data FROM " + s.TableName + " ORDER BY created_at ASC, id ASC LIMIT $1"
 
 	// Preallocate based on known batch size to avoid reallocations during iteration.
-	events := make([]cadf.Event, 0, batchSize)
-	eventIDs := make([]int64, 0, batchSize)
+	events := make([]cadf.Event, 0, s.BatchSize)
+	eventIDs := make([]int64, 0, s.BatchSize)
 
-	err := sqlext.ForeachRow(s.db, query, []any{batchSize}, func(rows *sql.Rows) error {
+	err := sqlext.ForeachRow(s.db, query, []any{s.BatchSize}, func(rows *sql.Rows) error {
 		var id int64
 		var eventData []byte
 
@@ -219,6 +233,9 @@ func (s *sqlBackingStore) ReadBatch() ([]cadf.Event, func() error, error) {
 		var event cadf.Event
 		if err := json.Unmarshal(eventData, &event); err != nil {
 			s.errorCounter.WithLabelValues("read_unmarshal").Inc()
+			// Include corrupted row ID so commit() deletes it,
+			// preventing infinite reprocessing of corrupt data.
+			eventIDs = append(eventIDs, id)
 			return nil //nolint:nilerr // intentionally skip corrupted events
 		}
 
@@ -253,7 +270,7 @@ func (s *sqlBackingStore) makeCommitFunc(eventIDs []int64) func() error {
 
 		if _, err := s.db.Exec(query, pq.Array(eventIDs)); err != nil {
 			s.errorCounter.WithLabelValues("commit_delete").Inc()
-			return fmt.Errorf("audittools: failed to delete events: %w", err)
+			return fmt.Errorf("audittools: cannot delete events: %w", err)
 		}
 
 		return nil

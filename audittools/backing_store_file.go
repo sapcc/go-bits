@@ -35,7 +35,7 @@ import (
 func NewFileBackingStore(params json.RawMessage, opts AuditorOpts) (BackingStore, error) {
 	var store fileBackingStore
 	if err := json.Unmarshal(params, &store); err != nil {
-		return nil, fmt.Errorf("audittools: failed to parse file backing store config: %w", err)
+		return nil, fmt.Errorf("audittools: cannot parse file backing store config: %w", err)
 	}
 
 	registry := opts.Registry
@@ -88,11 +88,11 @@ func (s *fileBackingStore) Init(registry prometheus.Registerer) error {
 
 	// 0700 permissions prevent other users from reading audit data.
 	if err := os.MkdirAll(s.Directory, 0700); err != nil {
-		return fmt.Errorf("audittools: failed to create directory: %w", err)
+		return fmt.Errorf("audittools: cannot create directory: %w", err)
 	}
 	// MkdirAll does not update permissions on existing directories.
 	if err := os.Chmod(s.Directory, 0700); err != nil {
-		return fmt.Errorf("audittools: failed to chmod directory: %w", err)
+		return fmt.Errorf("audittools: cannot chmod directory: %w", err)
 	}
 
 	s.initializeMetrics(registry)
@@ -141,7 +141,7 @@ func (s *fileBackingStore) Write(event cadf.Event) error {
 	if s.MaxTotalSize > 0 {
 		if err := s.checkTotalSizeLimit(); err != nil {
 			s.errorCounter.WithLabelValues("write_full").Inc()
-			return fmt.Errorf("audittools: failed to write to backing store: %w", err)
+			return fmt.Errorf("audittools: cannot write to backing store: %w", err)
 		}
 	}
 
@@ -227,7 +227,7 @@ func (s *fileBackingStore) needsRotation(path string) (bool, error) {
 	}
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_stat").Inc()
-		return false, fmt.Errorf("audittools: failed to stat backing store file: %w", err)
+		return false, fmt.Errorf("audittools: cannot stat backing store file: %w", err)
 	}
 	return info.Size() >= s.MaxFileSize, nil
 }
@@ -244,14 +244,14 @@ func (s *fileBackingStore) writeEventToFile(filePath string, event cadf.Event) (
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_open").Inc()
-		return 0, fmt.Errorf("audittools: failed to open backing store file: %w", err)
+		return 0, fmt.Errorf("audittools: cannot open backing store file: %w", err)
 	}
 	defer f.Close()
 
 	b, err := json.Marshal(event)
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_marshal").Inc()
-		return 0, fmt.Errorf("audittools: failed to marshal event: %w", err)
+		return 0, fmt.Errorf("audittools: cannot marshal event: %w", err)
 	}
 
 	eventSize := int64(len(b) + 1)
@@ -259,13 +259,13 @@ func (s *fileBackingStore) writeEventToFile(filePath string, event cadf.Event) (
 	_, err = f.Write(append(b, '\n'))
 	if err != nil {
 		s.errorCounter.WithLabelValues("write_io").Inc()
-		return 0, fmt.Errorf("audittools: failed to write to backing store: %w", err)
+		return 0, fmt.Errorf("audittools: cannot write to backing store: %w", err)
 	}
 
 	// fsync required for audit compliance - data must survive system crashes.
 	if err := f.Sync(); err != nil {
 		s.errorCounter.WithLabelValues("write_sync").Inc()
-		return 0, fmt.Errorf("audittools: failed to sync backing store file: %w", err)
+		return 0, fmt.Errorf("audittools: cannot sync backing store file: %w", err)
 	}
 
 	return eventSize, nil
@@ -285,7 +285,7 @@ func (s *fileBackingStore) readEventsFromFile(path string) ([]cadf.Event, error)
 	f, err := os.Open(path)
 	if err != nil {
 		s.errorCounter.WithLabelValues("read_open").Inc()
-		return nil, fmt.Errorf("audittools: failed to open backing store file: %w", err)
+		return nil, fmt.Errorf("audittools: cannot open backing store file: %w", err)
 	}
 	defer f.Close()
 
@@ -303,7 +303,7 @@ func (s *fileBackingStore) readEventsFromFile(path string) ([]cadf.Event, error)
 
 	if err := scanner.Err(); err != nil {
 		s.errorCounter.WithLabelValues("read_scan").Inc()
-		return nil, fmt.Errorf("audittools: failed to scan backing store file: %w", err)
+		return nil, fmt.Errorf("audittools: cannot scan backing store file: %w", err)
 	}
 
 	return events, nil
@@ -334,7 +334,7 @@ func (s *fileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 
 	f, err := os.OpenFile(deadLetterFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return fmt.Errorf("audittools: failed to open dead-letter file: %w", err)
+		return fmt.Errorf("audittools: cannot open dead-letter file: %w", err)
 	}
 	defer f.Close()
 
@@ -348,22 +348,22 @@ func (s *fileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 		Timestamp:  time.Now().UTC().Format(time.RFC3339Nano),
 		SourceFile: filepath.Base(sourceFile),
 		RawData:    string(corruptedLine),
-		Error:      "failed to unmarshal event",
+		Error:      "cannot unmarshal event",
 	}
 
 	b, err := json.Marshal(entry)
 	if err != nil {
-		return fmt.Errorf("audittools: failed to marshal dead-letter entry: %w", err)
+		return fmt.Errorf("audittools: cannot marshal dead-letter entry: %w", err)
 	}
 
 	_, err = f.Write(append(b, '\n'))
 	if err != nil {
-		return fmt.Errorf("audittools: failed to write to dead-letter file: %w", err)
+		return fmt.Errorf("audittools: cannot write to dead-letter file: %w", err)
 	}
 
 	// fsync dead-letter files - corrupted audit data still requires durability guarantees.
 	if err := f.Sync(); err != nil {
-		return fmt.Errorf("audittools: failed to sync dead-letter file: %w", err)
+		return fmt.Errorf("audittools: cannot sync dead-letter file: %w", err)
 	}
 
 	s.errorCounter.WithLabelValues("deadletter_write").Inc()
@@ -376,7 +376,7 @@ func (s *fileBackingStore) writeDeadLetter(corruptedLine []byte, sourceFile stri
 func (s *fileBackingStore) listFiles() (files []string, totalSize int64, err error) {
 	entries, err := os.ReadDir(s.Directory)
 	if err != nil {
-		return nil, 0, fmt.Errorf("audittools: failed to read backing store directory: %w", err)
+		return nil, 0, fmt.Errorf("audittools: cannot read backing store directory: %w", err)
 	}
 
 	// Preallocate capacity based on directory entries to avoid reallocations.
@@ -396,7 +396,7 @@ func (s *fileBackingStore) listFiles() (files []string, totalSize int64, err err
 
 func (s *fileBackingStore) handleCorruptedEvent(corruptedLine []byte, sourceFile string) {
 	if err := s.writeDeadLetter(corruptedLine, sourceFile); err != nil {
-		logg.Error("audittools: failed to write to dead-letter file: %s", err.Error())
+		logg.Error("audittools: cannot write to dead-letter file: %s", err.Error())
 		s.errorCounter.WithLabelValues("deadletter_write_failed").Inc()
 	}
 	s.errorCounter.WithLabelValues("corrupted_event").Inc()

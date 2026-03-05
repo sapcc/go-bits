@@ -59,7 +59,7 @@ func main() {
             Name:    "myservice",
             ID:      "instance-uuid",
         },
-        EnvPrefix: "MYSERVICE_AUDIT", // Configures env vars like MYSERVICE_AUDIT_RABBITMQ_URL
+        EnvPrefix: "MYSERVICE_AUDIT", // Configures env vars like MYSERVICE_AUDIT_QUEUE_NAME, MYSERVICE_AUDIT_HOSTNAME, etc.
         BackingStoreFactories: map[string]audittools.BackingStoreFactory{
             "file":   audittools.NewFileBackingStore,
             "memory": audittools.NewInMemoryBackingStore,

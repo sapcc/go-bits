@@ -90,7 +90,7 @@ type AuditorOpts struct {
 	//       BackingStoreFactories: map[string]BackingStoreFactory{
 	//           "file":   NewFileBackingStore,
 	//           "memory": NewInMemoryBackingStore,
-	//           "sql":    SQLBackingStoreFactoryWithDB(db),
+	//           "sql":    SQLBackingStoreFactoryWithPostgresDB(db),
 	//       },
 	//   })
 	BackingStoreFactories map[string]BackingStoreFactory
@@ -126,9 +126,11 @@ func (opts AuditorOpts) getEnvConnectionOptions() (url.URL, string, error) {
 	}
 
 	hostname := osext.GetenvOrDefault(opts.EnvPrefix+"_HOSTNAME", "localhost")
-	port, err := opts.parsePort()
+
+	portStr := osext.GetenvOrDefault(opts.EnvPrefix+"_PORT", "5672")
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return url.URL{}, "", err
+		return url.URL{}, "", fmt.Errorf("invalid value for %s_PORT: %w", opts.EnvPrefix, err)
 	}
 
 	username := osext.GetenvOrDefault(opts.EnvPrefix+"_USERNAME", "guest")
@@ -142,15 +144,6 @@ func (opts AuditorOpts) getEnvConnectionOptions() (url.URL, string, error) {
 	}
 
 	return rabbitURL, queueName, nil
-}
-
-func (opts AuditorOpts) parsePort() (int, error) {
-	portStr := osext.GetenvOrDefault(opts.EnvPrefix+"_PORT", "5672")
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid value for %s_PORT: %w", opts.EnvPrefix, err)
-	}
-	return port, nil
 }
 
 type standardAuditor struct {
