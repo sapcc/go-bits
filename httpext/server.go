@@ -38,16 +38,16 @@ var ShutdownTimeout = 30 * time.Second
 // ListenAndServeContext(), to give reverse-proxies using this HTTP server some
 // extra delay to notice the pending shutdown of this server.
 func ContextWithSIGINT(ctx context.Context, delay time.Duration) context.Context {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx) //nolint:gosec // cancel is called via defer in the goroutine
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, shutdownSignals...)
 	go func() {
+		defer cancel() // Ensure cancel is always called
 		<-signalChan
 		logg.Info("Interrupt received...")
 		signal.Reset(shutdownSignals...)
 		time.Sleep(delay)
 		close(signalChan)
-		cancel()
 	}()
 	return ctx
 }
@@ -85,9 +85,9 @@ func listenAndServeContext(ctx context.Context, server *http.Server, listenAndSe
 
 		logg.Info("Shutting down HTTP server...")
 
-		ctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
-		err := server.Shutdown(ctx)
-		cancel()
+		shutdownCtx, cancel := context.WithTimeout(ctx, ShutdownTimeout)
+		defer cancel()
+		err := server.Shutdown(shutdownCtx)
 		waitForServerShutdown <- err
 	}()
 
