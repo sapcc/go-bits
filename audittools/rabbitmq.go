@@ -31,13 +31,14 @@ func newRabbitConnection(uri url.URL, queueName string) (*rabbitConnection, erro
 	// establish a connection with the RabbitMQ server
 	conn, err := amqp.Dial(uri.String())
 	if err != nil {
-		return nil, fmt.Errorf("audittools: rabbitmq: failed to establish a connection with the server: %w", err)
+		return nil, fmt.Errorf("audittools: rabbitmq: cannot establish a connection with the server: %w", err)
 	}
 
 	// open a unique, concurrent server channel to process the bulk of AMQP messages
 	ch, err := conn.Channel()
 	if err != nil {
-		return nil, fmt.Errorf("audittools: rabbitmq: failed to open a channel: %w", err)
+		conn.Close()
+		return nil, fmt.Errorf("audittools: rabbitmq: cannot open a channel: %w", err)
 	}
 
 	// declare a queue to hold and deliver messages to consumers
@@ -50,7 +51,7 @@ func newRabbitConnection(uri url.URL, queueName string) (*rabbitConnection, erro
 		nil,       // arguments for advanced config
 	)
 	if err != nil {
-		return nil, fmt.Errorf("audittools: rabbitmq: failed to declare a queue: %w", err)
+		return nil, fmt.Errorf("audittools: rabbitmq: cannot declare a queue: %w", err)
 	}
 
 	return &rabbitConnection{
@@ -81,7 +82,7 @@ func (c *rabbitConnection) PublishEvent(ctx context.Context, event *cadf.Event) 
 	}
 
 	if event == nil {
-		return errors.New("audittools: could not publish event: got a nil pointer for 'event' parameter")
+		return errors.New("audittools: cannot publish event: got a nil pointer for 'event' parameter")
 	}
 
 	b, err := json.Marshal(event)
@@ -96,7 +97,7 @@ func (c *rabbitConnection) PublishEvent(ctx context.Context, event *cadf.Event) 
 		false,       // mandatory: don't publish if no queue is bound that matches the routing key
 		false,       // immediate: don't publish if no consumer on the matched queue is ready to accept the delivery
 		amqp.Publishing{
-			ContentType: "text/plain",
+			ContentType: "application/json",
 			Body:        b,
 		},
 	)
