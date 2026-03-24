@@ -10,13 +10,15 @@ import (
 	"github.com/sapcc/go-bits/assert"
 )
 
-// A mock for *testing.T that implements the assert.TestingT interface.
+// MockT is a mock for *testing.T that implements the assert.TestingT interface.
 type MockT struct {
 	Errors []string
 }
 
+// Helper implements the assert.TestingT interface.
 func (mt *MockT) Helper() {}
 
+// Errorf implements the assert.TestingT interface.
 func (mt *MockT) Errorf(msg string, args ...any) {
 	mt.Errors = append(mt.Errors, fmt.Sprintf(msg, args...))
 }
@@ -29,7 +31,7 @@ func (mt *MockT) ExpectErrors(t *testing.T, expected ...string) {
 	mt.Errors = nil
 }
 
-// ExpectErrors asserts that no errors were collected so far.
+// ExpectNoErrors asserts that no errors were collected so far.
 func (mt *MockT) ExpectNoErrors(t *testing.T) {
 	t.Helper()
 	assert.DeepEqual(t, "collected errors", mt.Errors, []string(nil))
