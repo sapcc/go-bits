@@ -10,7 +10,7 @@ require (
 	github.com/gophercloud/gophercloud/v2 v2.11.1
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/hashicorp/vault/api v1.22.0
+	github.com/hashicorp/vault/api v1.23.0
 	github.com/lib/pq v1.12.0
 	github.com/majewsky/gg v1.5.0
 	github.com/prometheus/client_golang v1.23.2
