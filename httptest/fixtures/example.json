@@ -1,0 +1,17 @@
+{
+  "string_field": "hello",
+  "int_field": 42,
+  "float_field": 3.14,
+  "bool_true": true,
+  "bool_false": false,
+  "null_field": null,
+  "nested_object": {
+    "inner_string": "world",
+    "inner_int": 7
+  },
+  "array_field": [1, "two", true, null, 4.5],
+  "nested_array": [[1, 2], [3, 4]],
+  "object_in_array": [{"name": "alice"}, {"name": "bob"}],
+  "remove_me": "should be deleted",
+  "also_remove": "should also be deleted"
+}

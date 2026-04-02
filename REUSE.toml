@@ -28,7 +28,7 @@ SPDX-License-Identifier = "Apache-2.0"
 [[annotations]]
 path = [
   "httpapi/fixtures/metrics.prom",
-  "httptest/fixtures/example.txt",
+  "httptest/fixtures/example.*",
   "tools/release-info/go.mod",
 ]
 SPDX-FileCopyrightText = "SAP SE or an SAP affiliate company"
