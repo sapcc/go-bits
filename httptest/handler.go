@@ -289,9 +289,27 @@ func (r Response) Response() *http.Response {
 	return r.resp
 }
 
+// ExpectBody asserts that:
+//
+//   - the status code is equal to the provided value, and
+//   - the response body matches the provided expected value.
+//
+// Response body values on either side that are not valid UTF-8 may be mangled when rendering error messages,
+// in order to ensure that those messages are valid UTF-8.
+func (r Response) ExpectBody(t assert.TestingT, statusCode int, expectedBody []byte) {
+	t.Helper()
+	if !r.ExpectStatus(t, statusCode) {
+		return
+	}
+	// NOTE: In a shocking twist, casting to string is perfectly fine here, even for bytestrings that are not valid UTF-8.
+	//       When rendering error messages, assert.Equal() uses the %#v verb, which is smart enough to construct valid
+	//       string literals out of invalid byte sequences occurring in strings.
+	assert.Equal(t, string(r.BodyBytes()), string(expectedBody))
+}
+
 // ExpectHeader asserts that the response header in question is set to the provided value.
 //
-// This function returns the Response object unchained, since it is intended to be written in a chained style:
+// This function returns the Response object unchanged, since it is intended to be written in a chained style:
 //
 //	h.RespondTo(ctx, "GET /v1/assets").
 //		ExpectHeader("X-Ratelimit-Action", "asset:list").
@@ -316,7 +334,7 @@ func (r Response) ExpectHeader(t assert.TestingT, key, expected string) Response
 // ExpectHeaders asserts that all headers in the provided map are set to the exact same values in the response.
 // To check that a header is absent, include a key with an empty value in the provided map.
 //
-// This function returns the Response object unchained, since it is intended to be written in a chained style:
+// This function returns the Response object unchanged, since it is intended to be written in a chained style:
 //
 //	h.RespondTo(ctx, "GET /v1/assets").
 //		ExpectHeaders(http.Header{
@@ -337,7 +355,7 @@ func (r Response) ExpectHeaders(t assert.TestingT, hdr http.Header) Response {
 				expectedBuf bytes.Buffer
 				actualBuf   bytes.Buffer
 			)
-			// NOTE: It is fine to panic on error here. http.Header.Write can only fail on IO errors, but bytes.Buffer should never error on Write().
+			// NOTE: It is fine to panic on error here. http.Header.Write can only fail on IO errors, and bytes.Buffer should never error on Write().
 			err := http.Header{key: expected}.Write(&expectedBuf)
 			if err != nil {
 				panic(fmt.Sprintf("could not encode expected %s headers: %s", key, err.Error()))
