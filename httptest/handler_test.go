@@ -182,6 +182,32 @@ func TestRespondTo(t *testing.T) {
 	).ExpectStatus(mock, http.StatusNotFound)
 	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
 
+	// check ExpectBody()
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectBody(t, http.StatusOK, []byte("hello"))
+
+	// check how ExpectBody() reports an unexpected status code
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectBody(mock, http.StatusNotFound, []byte("hello"))
+	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
+
+	// check how ExpectBody() reports an unexpected response body
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(strings.NewReader("hello")),
+	).ExpectBody(mock, http.StatusOK, []byte("world"))
+	mock.ExpectErrors(t, `expected "world", but got "hello"`)
+
+	// check how ExpectBody() reacts to non-UTF-8 response bodies
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(bytes.NewReader([]byte{0xff, 0xfe, 0xfd})),
+	).ExpectBody(mock, http.StatusOK, []byte("world"))
+	mock.ExpectErrors(t, `expected "world", but got "\xff\xfe\xfd"`)
+
 	// check ExpectText()
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader("hello")),
@@ -201,8 +227,50 @@ func TestRespondTo(t *testing.T) {
 	).ExpectText(mock, http.StatusOK, "world")
 	mock.ExpectErrors(t, `expected "world", but got "hello"`)
 
+	// check how ExpectText() reacts to non-UTF-8 response bodies
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithBody(bytes.NewReader([]byte{0xff, 0xfe, 0xfd})),
+	).ExpectText(mock, http.StatusOK, "world")
+	mock.ExpectErrors(t, `expected "world", but got "�"`)
+
 	// check ExpectBodyAsInFixture()
 	h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(bytes.NewReader(must.Return(os.ReadFile("fixtures/example.txt")))),
 	).ExpectBodyAsInFixture(t, http.StatusOK, "fixtures/example.txt")
+
+	// check ExpectHeader()
+	h.RespondTo(ctx, "POST /reflect", httptest.WithHeaders(http.Header{
+		"Foo":     {"bar"},
+		"Numbers": {"23", "42"},
+	})).
+		ExpectHeader(t, "rEfLeCtEd-fOo", "bar").    // check normalization of keys
+		ExpectHeader(t, "Reflected-Numbers", "23"). // Header.Get() only returns first value
+		ExpectHeader(t, "Reflected-Nonsense", "").  // check that this header is absent
+		ExpectStatus(t, http.StatusOK)
+
+	// check how ExpectHeader() reports an unexpected header
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect", httptest.WithHeader("Foo", "qux")).
+		ExpectHeader(mock, "rEfLeCtEd-fOo", "bar"). // check normalization of keys
+		ExpectStatus(mock, http.StatusOK)
+	mock.ExpectErrors(t, `expected "Reflected-Foo: bar", but got "Reflected-Foo: qux"`)
+
+	// check ExpectHeaders()
+	h.RespondTo(ctx, "POST /reflect", httptest.WithHeaders(http.Header{
+		"Foo":     {"bar"},
+		"Numbers": {"23", "42"},
+	})).ExpectHeaders(t, http.Header{
+		"rEfLeCtEd-fOo":      {"bar"}, // check normalization of keys
+		"Reflected-Numbers":  {"23", "42"},
+		"Reflected-Nonsense": {}, // check that this header is absent
+	}).ExpectStatus(t, http.StatusOK)
+
+	// check how ExpectHeaders() reports an unexpected header
+	mock.Errors = nil
+	h.RespondTo(ctx, "POST /reflect", httptest.WithHeader("Numbers", "-1")).
+		ExpectHeaders(mock, http.Header{
+			"rEfLeCtEd-nUmBeRs": {"23", "42"}, // check normalization of keys
+		}).ExpectStatus(mock, http.StatusOK)
+	mock.ExpectErrors(t, `expected "Reflected-Numbers: 23\r\nReflected-Numbers: 42", but got "Reflected-Numbers: -1"`)
 }
