@@ -103,22 +103,46 @@ func TestRespondTo(t *testing.T) {
 	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "application/x-just-bools+json")
 	assert.Equal(t, resp.BodyString(), `[true,false,true]`)
 
-	// check ReceiveJSONInto()
+	// check CaptureJSON()
 	var output map[string]any
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`{"foo":"foofoo"}`)),
-		httptest.ReceiveJSONInto(&output),
-	)
+	).CaptureJSON(&output)
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"foo": "foofoo"})
 
-	// check that ReceiveJSONInto() zeroes its target before unmarshaling
+	// check that CaptureJSON() zeroes its target before unmarshaling
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`{"bar":"barbar"}`)),
-		httptest.ReceiveJSONInto(&output),
-	)
+	).CaptureJSON(&output)
 	assert.Equal(t, resp.StatusCode(), 200)
 	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"bar": "barbar"}) // "foo" member from previous test was removed before unmarshaling
+
+	// check that CaptureJSON() zeroes its target even if unmarshaling
+	// is skipped because the response has a non-2xx status
+	resp = h.RespondTo(ctx, "GET /not-found").CaptureJSON(&output)
+	assert.Equal(t, resp.StatusCode(), 404)                    // was not overwritten with 999 for a failed unmarshal
+	assert.Equal(t, resp.BodyString(), "404 page not found\n") // was not overwritten with an unmarshal error
+	assert.DeepEqual(t, "Reflected Body", output, nil)
+
+	// check CaptureHeader()
+	var (
+		quxHeader     = "unset"
+		fooHeader     = "unset"
+		numbersHeader = "unset"
+	)
+	h.RespondTo(ctx, "POST /reflect",
+		httptest.WithHeaders(http.Header{
+			"Foo":     {"bar"},
+			"Numbers": {"23", "42"},
+		}),
+		httptest.WithBody(strings.NewReader(`hello`))).
+		CaptureHeader("reflected-foo", &fooHeader).
+		CaptureHeader("Reflected-Qux", &quxHeader).
+		CaptureHeader("rEfLeCtEd-nUmBeRs", &numbersHeader) // check key normalization
+	assert.Equal(t, fooHeader, "bar")
+	assert.Equal(t, quxHeader, "")       // check that non-existent header writes empty string
+	assert.Equal(t, numbersHeader, "23") // check that header with multiple values writes first result
 
 	// check how WithJSONBody() reports JSON marshaling errors
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -128,12 +152,11 @@ func TestRespondTo(t *testing.T) {
 	assert.Equal(t, resp.Response().Status, "999 JSON Marshal Error")
 	assert.Equal(t, resp.BodyString(), "json: unsupported type: func() time.Time")
 
-	// check how ReceiveJSONInto() reports JSON unmarshaling errors
+	// check how CaptureJSON() reports JSON unmarshaling errors
 	var outputNumber int
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`"Hello"`)),
-		httptest.ReceiveJSONInto(&outputNumber),
-	)
+	).CaptureJSON(&outputNumber)
 	assert.Equal(t, resp.StatusCode(), 999)
 	assert.Equal(t, resp.Response().Status, "999 JSON Unmarshal Error")
 	assert.Equal(t, resp.BodyString(), "json: cannot unmarshal string into Go value of type int")
