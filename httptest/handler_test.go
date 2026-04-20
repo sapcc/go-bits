@@ -86,6 +86,15 @@ func TestRespondTo(t *testing.T) {
 	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "text/plain")
 	assert.Equal(t, resp.BodyString(), "Hello world")
 
+	// same check as the one above, but rephrased to provide test coverage for MergeRequestOptions()
+	resp = h.RespondTo(ctx, "POST /reflect", httptest.MergeRequestOptions(
+		httptest.WithHeader("Content-Type", "text/plain"),
+		httptest.WithBody(strings.NewReader("Hello world")),
+	))
+	assert.Equal(t, resp.StatusCode(), 200)
+	assert.Equal(t, resp.Header().Get("Reflected-Content-Type"), "text/plain")
+	assert.Equal(t, resp.BodyString(), "Hello world")
+
 	// check WithJSONBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithJSONBody([]bool{true, false, true}),
@@ -271,6 +280,17 @@ func TestRespondTo(t *testing.T) {
 		ExpectHeader(t, "Reflected-Numbers", "23"). // Header.Get() only returns first value
 		ExpectHeader(t, "Reflected-Nonsense", "").  // check that this header is absent
 		ExpectStatus(t, http.StatusOK)
+
+	// same check as the one above, rewritten to provide test coverage for Response.Expect()
+	customAssertion := func(r httptest.Response) {
+		r.ExpectHeader(t, "rEfLeCtEd-fOo", "bar")
+		r.ExpectHeader(t, "Reflected-Numbers", "23")
+		r.ExpectHeader(t, "Reflected-Nonsense", "")
+	}
+	h.RespondTo(ctx, "POST /reflect", httptest.WithHeaders(http.Header{
+		"Foo":     {"bar"},
+		"Numbers": {"23", "42"},
+	})).Expect(customAssertion).ExpectStatus(t, http.StatusOK)
 
 	// check how ExpectHeader() reports an unexpected header
 	mock.Errors = nil
