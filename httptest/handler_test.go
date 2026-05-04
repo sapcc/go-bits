@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/majewsky/gg/jsonmatch"
+	"go.xyrillian.de/gg/jsonmatch"
 
 	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"

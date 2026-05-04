@@ -13,12 +13,12 @@ require (
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/itchyny/gojq v0.12.19
 	github.com/lib/pq v1.12.3
-	github.com/majewsky/gg v1.6.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.67.5
 	github.com/rabbitmq/amqp091-go v1.11.0
-	github.com/sapcc/go-api-declarations v1.21.0
+	github.com/sapcc/go-api-declarations v1.21.1
 	github.com/sergi/go-diff v1.4.0
+	go.xyrillian.de/gg v1.7.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )

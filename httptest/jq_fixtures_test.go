@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/majewsky/gg/jsonmatch"
+	"go.xyrillian.de/gg/jsonmatch"
 
 	"github.com/sapcc/go-bits/assert"
 )
