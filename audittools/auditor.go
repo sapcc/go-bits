@@ -22,10 +22,11 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-api-declarations/cadf"
+	"go.xyrillian.de/gg/jsonmatch"
 
-	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/internal"
 	"github.com/sapcc/go-bits/logg"
+	"github.com/sapcc/go-bits/must"
 	"github.com/sapcc/go-bits/osext"
 )
 
@@ -209,17 +210,32 @@ func (a *MockAuditor) Record(event Event) {
 // If you do not have a *testing.T (e.g. under Ginkgo), use func RecordedEvents instead.
 func (a *MockAuditor) ExpectEvents(t *testing.T, expectedEvents ...cadf.Event) {
 	t.Helper()
+
+	defer func() {
+		// reset state for next test
+		a.events = nil
+	}()
+
 	if len(expectedEvents) == 0 {
+		if len(a.events) == 0 {
+			return
+		}
 		expectedEvents = nil
 	} else {
 		for idx, event := range expectedEvents {
 			expectedEvents[idx] = a.normalize(event)
 		}
 	}
-	assert.DeepEqual(t, "CADF events", a.events, expectedEvents)
 
-	// reset state for next test
-	a.events = nil
+	buf1 := must.ReturnT(json.Marshal(a.events))(t)
+	buf2 := must.ReturnT(json.Marshal(expectedEvents))(t)
+
+	var expected jsonmatch.Array
+	must.SucceedT(t, json.Unmarshal(buf2, &expected))
+
+	for _, d := range expected.DiffAgainst(buf1) {
+		t.Error(d.String())
+	}
 }
 
 // RecordedEvents returns the list of recorded events.
