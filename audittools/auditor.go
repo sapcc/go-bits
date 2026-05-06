@@ -18,15 +18,14 @@ import (
 	"net"
 	"net/url"
 	"strconv"
-	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/go-api-declarations/cadf"
 	"go.xyrillian.de/gg/jsonmatch"
 
+	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/internal"
 	"github.com/sapcc/go-bits/logg"
-	"github.com/sapcc/go-bits/must"
 	"github.com/sapcc/go-bits/osext"
 )
 
@@ -208,33 +207,49 @@ func (a *MockAuditor) Record(event Event) {
 // At the end of the call, the recording will be disposed, so the next ExpectEvents call will not check against the same events again.
 //
 // If you do not have a *testing.T (e.g. under Ginkgo), use func RecordedEvents instead.
-func (a *MockAuditor) ExpectEvents(t *testing.T, expectedEvents ...cadf.Event) {
+func (a *MockAuditor) ExpectEvents(t assert.TestingT, expectedEvents ...cadf.Event) {
 	t.Helper()
 
-	defer func() {
-		// reset state for next test
-		a.events = nil
-	}()
+	actualEvents := a.RecordedEvents()
 
 	if len(expectedEvents) == 0 {
-		if len(a.events) == 0 {
+		if len(actualEvents) == 0 {
 			return
 		}
-		expectedEvents = nil
 	} else {
 		for idx, event := range expectedEvents {
 			expectedEvents[idx] = a.normalize(event)
 		}
 	}
 
-	buf1 := must.ReturnT(json.Marshal(a.events))(t)
-	buf2 := must.ReturnT(json.Marshal(expectedEvents))(t)
+	// normalize nil to [] for better jsonmatch.Diff output
+	if len(actualEvents) == 0 {
+		actualEvents = []cadf.Event{}
+	}
+	if len(expectedEvents) == 0 {
+		expectedEvents = []cadf.Event{}
+	}
 
-	var expected jsonmatch.Array
-	must.SucceedT(t, json.Unmarshal(buf2, &expected))
+	actualBuf, err := json.Marshal(map[string]any{"events": actualEvents})
+	if err != nil {
+		t.Errorf("cannot marshal recorded events to JSON: %s", err.Error())
+		return
+	}
+	expectedBuf, err := json.Marshal(map[string]any{"events": expectedEvents})
+	if err != nil {
+		t.Errorf("cannot marshal expected events to JSON: %s", err.Error())
+		return
+	}
 
-	for _, d := range expected.DiffAgainst(buf1) {
-		t.Error(d.String())
+	var expected jsonmatch.Object
+	err = json.Unmarshal(expectedBuf, &expected)
+	if err != nil {
+		t.Errorf("cannot unmarshal expected events from JSON: %s", err.Error())
+		return
+	}
+
+	for _, d := range expected.DiffAgainst(actualBuf) {
+		t.Errorf("%s", d.String())
 	}
 }
 
