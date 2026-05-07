@@ -36,3 +36,11 @@ func (mt *MockT) ExpectNoErrors(t *testing.T) {
 	t.Helper()
 	assert.DeepEqual(t, "collected errors", mt.Errors, []string(nil))
 }
+
+// CollectedErrors returns the errors collected so far,
+// and then clears out the list of collected errors for the next subtest.
+func (mt *MockT) CollectedErrors() []string {
+	result := mt.Errors
+	mt.Errors = nil
+	return result
+}
