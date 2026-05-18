@@ -18,6 +18,10 @@ import (
 	"github.com/sapcc/go-bits/logg"
 )
 
+var EndpointNamer func(r *http.Request) string = func(r *http.Request) string {
+	return "unknown"
+}
+
 // A http.Handler middleware that adds all the special behavior for this package.
 type middleware struct {
 	inner       http.Handler
@@ -47,6 +51,11 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// forward request to actual handler
 	m.inner.ServeHTTP(&writer, r)
+
+	if endpointID == "unknown" {
+		endpointID = EndpointNamer(r)
+	}
+
 	duration := time.Since(startedAt)
 
 	// emit metrics
