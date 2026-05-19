@@ -18,6 +18,17 @@ func Compose(apis ...API) http.Handler {
 	r := mux.NewRouter()
 	m := middleware{inner: r}
 
+	// Automatically identify the endpoint for go-bits metrics using EndpointNamer,
+	// called here inside the gorilla/mux chain where route context is available.
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if name := EndpointNamer(r); name != "" {
+				IdentifyEndpoint(r, name)
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	for _, a := range apis {
 		switch a := a.(type) {
 		case pseudoAPI:

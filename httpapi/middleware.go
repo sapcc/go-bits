@@ -18,6 +18,10 @@ import (
 	"github.com/sapcc/go-bits/logg"
 )
 
+// EndpointNamer can be set by the application to derive the endpoint ID from a
+// request after routing has occurred (e.g. via mux.CurrentRoute). If the
+// endpoint ID was already set explicitly via IdentifyEndpoint(), EndpointNamer
+// is not called.
 var EndpointNamer func(r *http.Request) string = func(r *http.Request) string {
 	return "unknown"
 }
@@ -51,10 +55,6 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// forward request to actual handler
 	m.inner.ServeHTTP(&writer, r)
-
-	if endpointID == "unknown" {
-		endpointID = EndpointNamer(r)
-	}
 
 	duration := time.Since(startedAt)
 
