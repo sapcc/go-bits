@@ -20,10 +20,10 @@ import (
 
 // EndpointNamer can be set by the application to derive the endpoint ID from a
 // request after routing has occurred (e.g. via mux.CurrentRoute). If the
-// endpoint ID was already set explicitly via IdentifyEndpoint(), EndpointNamer
-// is not called.
-var EndpointNamer func(r *http.Request) string = func(r *http.Request) string {
-	return "unknown"
+// handler calls IdentifyEndpoint() explicitly, that value takes precedence over
+// the result of EndpointNamer.
+var EndpointNamer func(r *http.Request) *string = func(r *http.Request) *string {
+	return nil
 }
 
 // A http.Handler middleware that adds all the special behavior for this package.
