@@ -22,8 +22,10 @@ func Compose(apis ...API) http.Handler {
 	// called here inside the gorilla/mux chain where route context is available.
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if name, ok := EndpointNamer(r).Unpack(); ok {
-				IdentifyEndpoint(r, name)
+			if EndpointNamer != nil {
+				if name, ok := EndpointNamer(r).Unpack(); ok {
+					IdentifyEndpoint(r, name)
+				}
 			}
 			next.ServeHTTP(w, r)
 		})
