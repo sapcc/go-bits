@@ -24,6 +24,9 @@ import (
 // Some(name) when a name can be derived, or None[string]() otherwise. If the
 // handler calls IdentifyEndpoint() explicitly, that value takes precedence over
 // the result of EndpointNamer.
+//
+// This variable must be set once during initialization (before the server
+// starts serving requests) and must not be changed concurrently.
 var EndpointNamer func(r *http.Request) Option[string] = func(r *http.Request) Option[string] {
 	return None[string]()
 }
