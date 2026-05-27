@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	. "go.xyrillian.de/gg/option"
 
 	"github.com/sapcc/go-bits/httpext"
 	"github.com/sapcc/go-bits/logg"
@@ -22,8 +23,8 @@ import (
 // request after routing has occurred (e.g. via mux.CurrentRoute). If the
 // handler calls IdentifyEndpoint() explicitly, that value takes precedence over
 // the result of EndpointNamer.
-var EndpointNamer func(r *http.Request) *string = func(r *http.Request) *string {
-	return nil
+var EndpointNamer func(r *http.Request) Option[string] = func(r *http.Request) Option[string] {
+	return None[string]()
 }
 
 // A http.Handler middleware that adds all the special behavior for this package.
@@ -55,7 +56,6 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// forward request to actual handler
 	m.inner.ServeHTTP(&writer, r)
-
 	duration := time.Since(startedAt)
 
 	// emit metrics
