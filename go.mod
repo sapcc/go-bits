@@ -18,7 +18,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.11.0
 	github.com/sapcc/go-api-declarations v1.22.0
 	github.com/sergi/go-diff v1.4.0
-	go.xyrillian.de/gg v1.8.1
+	go.xyrillian.de/gg v1.9.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )

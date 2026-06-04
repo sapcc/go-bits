@@ -171,8 +171,8 @@ go.opentelemetry.io/otel/trace v1.37.0 h1:HLdcFNbRQBE2imdSEgm/kwqmQj1Or1l/7bW6mx
 go.opentelemetry.io/otel/trace v1.37.0/go.mod h1:TlgrlQ+PtQO5XFerSPUYG0JSgGyryXewPGyayAWSBS0=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
-go.xyrillian.de/gg v1.8.1 h1:qfxSUMA59Zb9ZWdrHXkDsN4CxBKadCNepwhrKR9sm74=
-go.xyrillian.de/gg v1.8.1/go.mod h1:dj+ZhCwC6JKWyFvImhVNXQAErrRcYMUkXu6vwWYNrzQ=
+go.xyrillian.de/gg v1.9.0 h1:vszip+UjOBaczo/s9tr6Ij2eo39pxWlVZdbBcLkzXBM=
+go.xyrillian.de/gg v1.9.0/go.mod h1:dj+ZhCwC6JKWyFvImhVNXQAErrRcYMUkXu6vwWYNrzQ=
 go.yaml.in/yaml/v2 v2.4.4 h1:tuyd0P+2Ont/d6e2rl3be67goVK4R6deVxCUX5vyPaQ=
 go.yaml.in/yaml/v2 v2.4.4/go.mod h1:gMZqIpDtDqOfM0uNfy0SkpRhvUryYH0Z6wdMYcacYXQ=
 golang.org/x/net v0.55.0 h1:bcvxaJn3e1U6InsFWt1JUq1aSjnRxLzT2rtD2KfkDF8=
