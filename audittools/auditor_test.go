@@ -31,12 +31,24 @@ func (mockTarget) Render() cadf.Resource {
 	return cadf.Resource{}
 }
 
+type mockComplexTarget struct {
+	Cores     int `json:"vcpu"`
+	MemoryGiB int `json:"ram"`
+}
+
+func (t mockComplexTarget) Render() cadf.Resource {
+	return cadf.Resource{
+		Name:        "dummy-server",
+		Attachments: []cadf.Attachment{must.Return(cadf.NewJSONAttachment("payload", t))},
+	}
+}
+
 func TestMockAuditor(t *testing.T) {
 	mockT := &testutil.MockT{}
 	auditor := audittools.NewMockAuditor()
 
 	// setup some dummy events
-	makeEvent := func(status int) audittools.Event {
+	makeEvent := func(status int, target audittools.Target) audittools.Event {
 		return audittools.Event{
 			Time: time.Now(),
 			Request: &http.Request{
@@ -46,7 +58,7 @@ func TestMockAuditor(t *testing.T) {
 			User:       mockUserInfo{},
 			ReasonCode: status,
 			Action:     cadf.CreateAction,
-			Target:     mockTarget{},
+			Target:     target,
 		}
 	}
 
@@ -56,14 +68,14 @@ func TestMockAuditor(t *testing.T) {
 	mockT.ExpectNoErrors(t)
 
 	// no events recorded, but one event expected -> error
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK).ToCADF(cadf.Resource{}))
+	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK, mockTarget{}).ToCADF(cadf.Resource{}))
 
 	errs := mockT.CollectedErrors()
 	assert.Equal(t, len(errs), 1)
 	assert.ErrEqual(t, errors.New(errs[0]), regexp.MustCompile(`value mismatch at /events/0: expected \{.*\}, but got <missing>`))
 
 	// one event recorded, but no events expected -> error
-	auditor.Record(makeEvent(http.StatusOK))
+	auditor.Record(makeEvent(http.StatusOK, mockTarget{}))
 	auditor.ExpectEvents(mockT, nil...)
 
 	errs = mockT.CollectedErrors()
@@ -71,8 +83,8 @@ func TestMockAuditor(t *testing.T) {
 	assert.ErrEqual(t, errors.New(errs[0]), regexp.MustCompile(`value mismatch at /events/0: expected <missing>, but got \{.*\}`))
 
 	// one event recorded, but a different event expected -> error
-	auditor.Record(makeEvent(http.StatusOK))
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusNotFound).ToCADF(cadf.Resource{}))
+	auditor.Record(makeEvent(http.StatusOK, mockTarget{}))
+	auditor.ExpectEvents(mockT, makeEvent(http.StatusNotFound, mockTarget{}).ToCADF(cadf.Resource{}))
 
 	mockT.ExpectErrors(t,
 		`value mismatch at /events/0/outcome: expected "failure", but got "success"`,
@@ -80,8 +92,17 @@ func TestMockAuditor(t *testing.T) {
 	)
 
 	// one event recorded, and that same event expected -> success
-	auditor.Record(makeEvent(http.StatusOK))
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK).ToCADF(cadf.Resource{}))
+	auditor.Record(makeEvent(http.StatusOK, mockTarget{}))
+	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK, mockTarget{}).ToCADF(cadf.Resource{}))
 
 	mockT.ExpectNoErrors(t)
+
+	// check error reporting for diffs within JSON attachments
+	auditor.Record(makeEvent(http.StatusOK, mockComplexTarget{Cores: 2, MemoryGiB: 4}))
+	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK, mockComplexTarget{Cores: 3, MemoryGiB: 6}).ToCADF(cadf.Resource{}))
+
+	mockT.ExpectErrors(t,
+		`value mismatch at /events/0/target/attachments/0/content/ram: expected 6, but got 4`,
+		`value mismatch at /events/0/target/attachments/0/content/vcpu: expected 3, but got 2`,
+	)
 }
