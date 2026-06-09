@@ -114,3 +114,22 @@ func BeOKT[V any](val V, ok bool) func(testing.TB) V {
 		return val
 	}
 }
+
+// NotBeOK is the opposite operation of BeOK().
+func NotBeOK[V any](val V, ok bool) V {
+	if ok {
+		logg.Fatal(`expected "ok" to be false`)
+	}
+	return val
+}
+
+// NotBeOKT is the opposite operation of BeOKT().
+func NotBeOKT[V any](val V, ok bool) func(testing.TB) V {
+	return func(t testing.TB) V {
+		t.Helper()
+		if ok {
+			t.Fatal(`expected "ok" to be false`)
+		}
+		return val
+	}
+}
