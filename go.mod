@@ -16,7 +16,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.68.1
 	github.com/rabbitmq/amqp091-go v1.11.0
-	github.com/sapcc/go-api-declarations v1.22.0
+	github.com/sapcc/go-api-declarations v1.23.0
 	github.com/sergi/go-diff v1.4.0
 	go.xyrillian.de/gg v1.9.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -49,8 +49,8 @@ require (
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
