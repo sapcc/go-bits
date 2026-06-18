@@ -16,7 +16,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.69.0
 	github.com/rabbitmq/amqp091-go v1.12.0
-	github.com/sapcc/go-api-declarations v1.23.0
+	github.com/sapcc/go-api-declarations v1.24.0
 	github.com/sergi/go-diff v1.4.0
 	go.xyrillian.de/gg v1.9.1
 	gopkg.in/yaml.v2 v2.4.0
