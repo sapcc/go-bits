@@ -8,9 +8,8 @@ import (
 	"os"
 	"testing"
 
+	"go.xyrillian.de/gg/assert"
 	"go.xyrillian.de/gg/jsonmatch"
-
-	"github.com/sapcc/go-bits/assert"
 )
 
 func expectNoDiffs(t *testing.T, diffs []jsonmatch.Diff) {

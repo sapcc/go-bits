@@ -4,12 +4,10 @@
 package gopherpolicy
 
 import (
-	"fmt"
 	"testing"
 
 	policy "github.com/databus23/goslo.policy"
-
-	"github.com/sapcc/go-bits/assert"
+	"go.xyrillian.de/gg/assert"
 )
 
 func TestSerializeCompactContext(t *testing.T) {
@@ -178,13 +176,13 @@ func TestSerializeCompactContext(t *testing.T) {
 			t.Errorf("unexpected error in SerializeCompactContextToJSON(%#v): %s", tc.Context, err.Error())
 			continue
 		}
-		assert.DeepEqual(t, fmt.Sprintf("SerializeCompactContextToJSON(%#v)", tc.Context), string(buf), tc.Serialized)
+		assert.Equal(t, string(buf), tc.Serialized)
 
 		// test deserialization
 		parsed, err := DeserializeCompactContextFromJSON([]byte(tc.Serialized))
 		if err != nil {
 			t.Errorf("unexpected error in DeserializeCompactContextFromJSON(%q): %s", tc.Serialized, err.Error())
 		}
-		assert.DeepEqual(t, fmt.Sprintf("DeserializeCompactContextFromJSON(%q)", tc.Serialized), parsed, tc.Context)
+		assert.Equal(t, parsed, tc.Context)
 	}
 }

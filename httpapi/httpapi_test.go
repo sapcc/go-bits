@@ -22,9 +22,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.xyrillian.de/gg/assert"
 	. "go.xyrillian.de/gg/option"
 
-	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"
 	"github.com/sapcc/go-bits/logg"
 	"github.com/sapcc/go-bits/respondwith"

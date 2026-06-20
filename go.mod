@@ -17,8 +17,7 @@ require (
 	github.com/prometheus/common v0.69.0
 	github.com/rabbitmq/amqp091-go v1.12.0
 	github.com/sapcc/go-api-declarations v1.24.0
-	github.com/sergi/go-diff v1.4.0
-	go.xyrillian.de/gg v1.9.1
+	go.xyrillian.de/gg v1.10.1
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -39,6 +38,7 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kr/text v0.1.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

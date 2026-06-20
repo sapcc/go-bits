@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/sapcc/go-api-declarations/cadf"
+	"go.xyrillian.de/gg/assert"
+	"go.xyrillian.de/gg/testcapture"
 
-	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/audittools"
-	"github.com/sapcc/go-bits/internal/testutil"
 	"github.com/sapcc/go-bits/must"
 )
 
@@ -44,7 +44,6 @@ func (t mockComplexTarget) Render() cadf.Resource {
 }
 
 func TestMockAuditor(t *testing.T) {
-	mockT := &testutil.MockT{}
 	auditor := audittools.NewMockAuditor()
 
 	// setup some dummy events
@@ -63,46 +62,56 @@ func TestMockAuditor(t *testing.T) {
 	}
 
 	// no events recorded and also no events expected -> success
-	auditor.ExpectEvents(mockT, nil...)
+	result := testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		auditor.ExpectEvents(t, nil...)
+	})
 
-	mockT.ExpectNoErrors(t)
+	assert.Equal(t, len(result.Messages), 0)
 
 	// no events recorded, but one event expected -> error
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK, mockTarget{}).ToCADF(cadf.Resource{}))
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		auditor.ExpectEvents(t, makeEvent(http.StatusOK, mockTarget{}).ToCADF(cadf.Resource{}))
+	})
 
-	errs := mockT.CollectedErrors()
-	assert.Equal(t, len(errs), 1)
-	assert.ErrEqual(t, errors.New(errs[0]), regexp.MustCompile(`value mismatch at /events/0: expected \{.*\}, but got <missing>`))
+	assert.Equal(t, len(result.Messages), 1)
+	assert.ErrEqual(t, errors.New(result.Messages[0].Message), regexp.MustCompile(`value mismatch at /events/0: expected \{.*\}, but got <missing>`))
 
 	// one event recorded, but no events expected -> error
 	auditor.Record(makeEvent(http.StatusOK, mockTarget{}))
-	auditor.ExpectEvents(mockT, nil...)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		auditor.ExpectEvents(t, nil...)
+	})
 
-	errs = mockT.CollectedErrors()
-	assert.Equal(t, len(errs), 1)
-	assert.ErrEqual(t, errors.New(errs[0]), regexp.MustCompile(`value mismatch at /events/0: expected <missing>, but got \{.*\}`))
+	assert.Equal(t, len(result.Messages), 1)
+	assert.ErrEqual(t, errors.New(result.Messages[0].Message), regexp.MustCompile(`value mismatch at /events/0: expected <missing>, but got \{.*\}`))
 
 	// one event recorded, but a different event expected -> error
 	auditor.Record(makeEvent(http.StatusOK, mockTarget{}))
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusNotFound, mockTarget{}).ToCADF(cadf.Resource{}))
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		auditor.ExpectEvents(t, makeEvent(http.StatusNotFound, mockTarget{}).ToCADF(cadf.Resource{}))
+	})
 
-	mockT.ExpectErrors(t,
-		`value mismatch at /events/0/outcome: expected "failure", but got "success"`,
-		`value mismatch at /events/0/reason/reasonCode: expected "404", but got "200"`,
-	)
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`value mismatch at /events/0/outcome: expected "failure", but got "success"`),
+		testcapture.Log(`value mismatch at /events/0/reason/reasonCode: expected "404", but got "200"`),
+	})
 
 	// one event recorded, and that same event expected -> success
 	auditor.Record(makeEvent(http.StatusOK, mockTarget{}))
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK, mockTarget{}).ToCADF(cadf.Resource{}))
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		auditor.ExpectEvents(t, makeEvent(http.StatusOK, mockTarget{}).ToCADF(cadf.Resource{}))
+	})
 
-	mockT.ExpectNoErrors(t)
+	assert.Equal(t, len(result.Messages), 0)
 
 	// check error reporting for diffs within JSON attachments
 	auditor.Record(makeEvent(http.StatusOK, mockComplexTarget{Cores: 2, MemoryGiB: 4}))
-	auditor.ExpectEvents(mockT, makeEvent(http.StatusOK, mockComplexTarget{Cores: 3, MemoryGiB: 6}).ToCADF(cadf.Resource{}))
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		auditor.ExpectEvents(t, makeEvent(http.StatusOK, mockComplexTarget{Cores: 3, MemoryGiB: 6}).ToCADF(cadf.Resource{}))
+	})
 
-	mockT.ExpectErrors(t,
-		`value mismatch at /events/0/target/attachments/0/content/ram: expected 6, but got 4`,
-		`value mismatch at /events/0/target/attachments/0/content/vcpu: expected 3, but got 2`,
-	)
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`value mismatch at /events/0/target/attachments/0/content/ram: expected 6, but got 4`),
+		testcapture.Log(`value mismatch at /events/0/target/attachments/0/content/vcpu: expected 3, but got 2`),
+	})
 }

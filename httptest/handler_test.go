@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"go.xyrillian.de/gg/assert"
 	"go.xyrillian.de/gg/jsonmatch"
+	"go.xyrillian.de/gg/testcapture"
 
-	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"
-	"github.com/sapcc/go-bits/internal/testutil"
 	"github.com/sapcc/go-bits/must"
 )
 
@@ -56,7 +56,7 @@ func TestRespondTo(t *testing.T) {
 		httptest.WithHeader("Foo", "bar"),
 	)
 	assert.Equal(t, resp.StatusCode(), 200)
-	assert.DeepEqual(t, "Reflected-Foo", resp.Header()["Reflected-Foo"], []string{"bar"})
+	assert.Equal(t, resp.Header()["Reflected-Foo"], []string{"bar"})
 
 	// check WithHeaders()
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -66,8 +66,8 @@ func TestRespondTo(t *testing.T) {
 		}),
 	)
 	assert.Equal(t, resp.StatusCode(), 200)
-	assert.DeepEqual(t, "Reflected-Foo", resp.Header()["Reflected-Foo"], []string{"bar"})
-	assert.DeepEqual(t, "Reflected-Numbers", resp.Header()["Reflected-Numbers"], []string{"23", "42"})
+	assert.Equal(t, resp.Header()["Reflected-Foo"], []string{"bar"})
+	assert.Equal(t, resp.Header()["Reflected-Numbers"], []string{"23", "42"})
 
 	// check WithBody()
 	resp = h.RespondTo(ctx, "POST /reflect",
@@ -118,21 +118,21 @@ func TestRespondTo(t *testing.T) {
 		httptest.WithBody(strings.NewReader(`{"foo":"foofoo"}`)),
 	).CaptureJSON(&output)
 	assert.Equal(t, resp.StatusCode(), 200)
-	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"foo": "foofoo"})
+	assert.Equal(t, output, map[string]any{"foo": "foofoo"})
 
 	// check that CaptureJSON() zeroes its target before unmarshaling
 	resp = h.RespondTo(ctx, "POST /reflect",
 		httptest.WithBody(strings.NewReader(`{"bar":"barbar"}`)),
 	).CaptureJSON(&output)
 	assert.Equal(t, resp.StatusCode(), 200)
-	assert.DeepEqual(t, "Reflected Body", output, map[string]any{"bar": "barbar"}) // "foo" member from previous test was removed before unmarshaling
+	assert.Equal(t, output, map[string]any{"bar": "barbar"}) // "foo" member from previous test was removed before unmarshaling
 
 	// check that CaptureJSON() zeroes its target even if unmarshaling
 	// is skipped because the response has a non-2xx status
 	resp = h.RespondTo(ctx, "GET /not-found").CaptureJSON(&output)
 	assert.Equal(t, resp.StatusCode(), 404)                    // was not overwritten with 999 for a failed unmarshal
 	assert.Equal(t, resp.BodyString(), "404 page not found\n") // was not overwritten with an unmarshal error
-	assert.DeepEqual(t, "Reflected Body", output, nil)
+	assert.Equal(t, output, nil)
 
 	// check CaptureHeader()
 	var (
@@ -179,28 +179,37 @@ func TestRespondTo(t *testing.T) {
 	})
 
 	// check how ExpectJSON() reports an unexpected status code
-	mock := &testutil.MockT{}
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
-	).ExpectJSON(mock, http.StatusNotFound, jsonmatch.Object{})
-	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "{\"foo\":23,\"bar\":42}")`)
+	result := testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+		).ExpectJSON(t, http.StatusNotFound, jsonmatch.Object{})
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected HTTP status 404, but got 200 (body was "{\"foo\":23,\"bar\":42}")`),
+	})
 
 	// check how ExpectJSON() reports diffs without Pointer
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
-	).ExpectJSON(mock, http.StatusOK, jsonmatch.Scalar(true))
-	mock.ExpectErrors(t, `type mismatch: expected true, but got {"bar":42,"foo":23}`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+		).ExpectJSON(t, http.StatusOK, jsonmatch.Scalar(true))
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`type mismatch: expected true, but got {"bar":42,"foo":23}`),
+	})
 
 	// check how ExpectJSON() reports diffs with Pointer
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
-	).ExpectJSON(mock, http.StatusOK, jsonmatch.Object{
-		"foo": 23,
-		"bar": 45,
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader(`{"foo":23,"bar":42}`)),
+		).ExpectJSON(t, http.StatusOK, jsonmatch.Object{
+			"foo": 23,
+			"bar": 45,
+		})
 	})
-	mock.ExpectErrors(t, `value mismatch at /bar: expected 45, but got 42`)
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`value mismatch at /bar: expected 45, but got 42`),
+	})
 
 	// check ExpectStatus()
 	h.RespondTo(ctx, "POST /reflect",
@@ -208,11 +217,14 @@ func TestRespondTo(t *testing.T) {
 	).ExpectStatus(t, http.StatusOK)
 
 	// check how ExpectStatus() reports an unexpected status code
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader("hello")),
-	).ExpectStatus(mock, http.StatusNotFound)
-	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader("hello")),
+		).ExpectStatus(t, http.StatusNotFound)
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected HTTP status 404, but got 200 (body was "hello")`),
+	})
 
 	// check ExpectBody()
 	h.RespondTo(ctx, "POST /reflect",
@@ -220,25 +232,34 @@ func TestRespondTo(t *testing.T) {
 	).ExpectBody(t, http.StatusOK, []byte("hello"))
 
 	// check how ExpectBody() reports an unexpected status code
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader("hello")),
-	).ExpectBody(mock, http.StatusNotFound, []byte("hello"))
-	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader("hello")),
+		).ExpectBody(t, http.StatusNotFound, []byte("hello"))
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected HTTP status 404, but got 200 (body was "hello")`),
+	})
 
 	// check how ExpectBody() reports an unexpected response body
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader("hello")),
-	).ExpectBody(mock, http.StatusOK, []byte("world"))
-	mock.ExpectErrors(t, `expected "world", but got "hello"`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader("hello")),
+		).ExpectBody(t, http.StatusOK, []byte("world"))
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected "world", but got "hello"`),
+	})
 
 	// check how ExpectBody() reacts to non-UTF-8 response bodies
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(bytes.NewReader([]byte{0xff, 0xfe, 0xfd})),
-	).ExpectBody(mock, http.StatusOK, []byte("world"))
-	mock.ExpectErrors(t, `expected "world", but got "\xff\xfe\xfd"`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(bytes.NewReader([]byte{0xff, 0xfe, 0xfd})),
+		).ExpectBody(t, http.StatusOK, []byte("world"))
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected "world", but got "\xff\xfe\xfd"`),
+	})
 
 	// check ExpectText()
 	h.RespondTo(ctx, "POST /reflect",
@@ -246,25 +267,34 @@ func TestRespondTo(t *testing.T) {
 	).ExpectText(t, http.StatusOK, "hello")
 
 	// check how ExpectText() reports an unexpected status code
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader("hello")),
-	).ExpectText(mock, http.StatusNotFound, "hello")
-	mock.ExpectErrors(t, `expected HTTP status 404, but got 200 (body was "hello")`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader("hello")),
+		).ExpectText(t, http.StatusNotFound, "hello")
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected HTTP status 404, but got 200 (body was "hello")`),
+	})
 
 	// check how ExpectText() reports an unexpected response body
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(strings.NewReader("hello")),
-	).ExpectText(mock, http.StatusOK, "world")
-	mock.ExpectErrors(t, `expected "world", but got "hello"`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(strings.NewReader("hello")),
+		).ExpectText(t, http.StatusOK, "world")
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected "world", but got "hello"`),
+	})
 
 	// check how ExpectText() reacts to non-UTF-8 response bodies
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect",
-		httptest.WithBody(bytes.NewReader([]byte{0xff, 0xfe, 0xfd})),
-	).ExpectText(mock, http.StatusOK, "world")
-	mock.ExpectErrors(t, `expected "world", but got "�"`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect",
+			httptest.WithBody(bytes.NewReader([]byte{0xff, 0xfe, 0xfd})),
+		).ExpectText(t, http.StatusOK, "world")
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected "world", but got "�"`),
+	})
 
 	// check ExpectBodyAsInFixture()
 	h.RespondTo(ctx, "POST /reflect",
@@ -293,11 +323,14 @@ func TestRespondTo(t *testing.T) {
 	})).Expect(customAssertion).ExpectStatus(t, http.StatusOK)
 
 	// check how ExpectHeader() reports an unexpected header
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect", httptest.WithHeader("Foo", "qux")).
-		ExpectHeader(mock, "rEfLeCtEd-fOo", "bar"). // check normalization of keys
-		ExpectStatus(mock, http.StatusOK)
-	mock.ExpectErrors(t, `expected "Reflected-Foo: bar", but got "Reflected-Foo: qux"`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect", httptest.WithHeader("Foo", "qux")).
+			ExpectHeader(t, "rEfLeCtEd-fOo", "bar"). // check normalization of keys
+			ExpectStatus(t, http.StatusOK)
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected "Reflected-Foo: bar", but got "Reflected-Foo: qux"`),
+	})
 
 	// check ExpectHeaders()
 	h.RespondTo(ctx, "POST /reflect", httptest.WithHeaders(http.Header{
@@ -310,10 +343,13 @@ func TestRespondTo(t *testing.T) {
 	}).ExpectStatus(t, http.StatusOK)
 
 	// check how ExpectHeaders() reports an unexpected header
-	mock.Errors = nil
-	h.RespondTo(ctx, "POST /reflect", httptest.WithHeader("Numbers", "-1")).
-		ExpectHeaders(mock, http.Header{
-			"rEfLeCtEd-nUmBeRs": {"23", "42"}, // check normalization of keys
-		}).ExpectStatus(mock, http.StatusOK)
-	mock.ExpectErrors(t, `expected "Reflected-Numbers: 23\r\nReflected-Numbers: 42", but got "Reflected-Numbers: -1"`)
+	result = testcapture.Capture(t.Context(), t.Name(), func(t assert.TestingTB) {
+		h.RespondTo(ctx, "POST /reflect", httptest.WithHeader("Numbers", "-1")).
+			ExpectHeaders(t, http.Header{
+				"rEfLeCtEd-nUmBeRs": {"23", "42"}, // check normalization of keys
+			}).ExpectStatus(t, http.StatusOK)
+	})
+	assert.Equal(t, result.Messages, []testcapture.Message{
+		testcapture.Log(`expected "Reflected-Numbers: 23\r\nReflected-Numbers: 42", but got "Reflected-Numbers: -1"`),
+	})
 }

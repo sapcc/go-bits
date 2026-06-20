@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"testing"
 
+	"go.xyrillian.de/gg/assert"
 	"go.xyrillian.de/gg/jsonmatch"
 
-	"github.com/sapcc/go-bits/assert"
 	"github.com/sapcc/go-bits/httptest"
 	"github.com/sapcc/go-bits/respondwith"
 )

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sapcc/go-bits/assert"
+	"go.xyrillian.de/gg/assert"
 )
 
 func TestClock(t *testing.T) {
