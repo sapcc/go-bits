@@ -6,9 +6,8 @@ package regexpext
 import (
 	"testing"
 
+	"go.xyrillian.de/gg/assert"
 	. "go.xyrillian.de/gg/option"
-
-	"github.com/sapcc/go-bits/assert"
 )
 
 func TestConfigSetPickWithLiterals(t *testing.T) {

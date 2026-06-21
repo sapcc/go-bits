@@ -6,7 +6,7 @@ package easypg
 import (
 	"testing"
 
-	"github.com/sapcc/go-bits/assert"
+	"go.xyrillian.de/gg/assert"
 )
 
 func TestURLFrom(t *testing.T) {

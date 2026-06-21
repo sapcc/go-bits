@@ -9,10 +9,9 @@ import (
 	"regexp"
 	"testing"
 
+	"go.xyrillian.de/gg/assert"
 	yaml_v2 "gopkg.in/yaml.v2"
 	yaml_v3 "gopkg.in/yaml.v3"
-
-	"github.com/sapcc/go-bits/assert"
 )
 
 type testDocument struct {
@@ -97,12 +96,12 @@ func TestUnmarshalGood(t *testing.T) {
 		assert.Equal(t, td.Bounded.MatchString("--hello"), false)
 		assert.Equal(t, td.Bounded.MatchString("hello--"), false)
 
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("hello"), []string{"hello"})
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("helko"), []string(nil))
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("--hello--"), []string{"hello"})
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Bounded.FindStringSubmatch("hello"), []string{"hello"})
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Bounded.FindStringSubmatch("helko"), []string(nil))
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Bounded.FindStringSubmatch("--hello--"), []string(nil))
+		assert.Equal(t, td.Plain.FindStringSubmatch("hello"), []string{"hello"})
+		assert.Equal(t, td.Plain.FindStringSubmatch("helko"), []string(nil))
+		assert.Equal(t, td.Plain.FindStringSubmatch("--hello--"), []string{"hello"})
+		assert.Equal(t, td.Bounded.FindStringSubmatch("hello"), []string{"hello"})
+		assert.Equal(t, td.Bounded.FindStringSubmatch("helko"), []string(nil))
+		assert.Equal(t, td.Bounded.FindStringSubmatch("--hello--"), []string(nil))
 	}
 }
 
@@ -138,10 +137,10 @@ func TestUnmarshalEmpty(t *testing.T) {
 		assert.Equal(t, td.Bounded.MatchString(""), true)
 		assert.Equal(t, td.Bounded.MatchString("foo"), false)
 
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch(""), []string{""})
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Plain.FindStringSubmatch("foo"), []string{""})
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Bounded.FindStringSubmatch(""), []string{""})
-		assert.DeepEqual(t, "FindStringSubmatch result", td.Bounded.FindStringSubmatch("foo"), []string(nil))
+		assert.Equal(t, td.Plain.FindStringSubmatch(""), []string{""})
+		assert.Equal(t, td.Plain.FindStringSubmatch("foo"), []string{""})
+		assert.Equal(t, td.Bounded.FindStringSubmatch(""), []string{""})
+		assert.Equal(t, td.Bounded.FindStringSubmatch("foo"), []string(nil))
 	}
 }
 

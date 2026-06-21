@@ -1,15 +1,14 @@
 // SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company
 // SPDX-License-Identifier: Apache-2.0
 
-// This needs to be in a separate package to allow importing go-bits/assert
-// without causing an import loop.
 package osext_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/sapcc/go-bits/assert"
+	"go.xyrillian.de/gg/assert"
+
 	"github.com/sapcc/go-bits/osext"
 )
 

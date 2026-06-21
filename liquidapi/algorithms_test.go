@@ -7,8 +7,7 @@ import (
 	"testing"
 
 	"github.com/sapcc/go-api-declarations/liquid"
-
-	"github.com/sapcc/go-bits/assert"
+	"go.xyrillian.de/gg/assert"
 )
 
 // NOTE: Additional test coverage for DistributeFairly() is implicit as part of datamodel.ApplyComputedProjectQuota() in Limes.
@@ -25,7 +24,7 @@ func TestDistributeFairlyWithLargeNumbers(t *testing.T) {
 		404: total / 2,
 	}
 	result := DistributeFairly(total, requested)
-	assert.DeepEqual(t, "output of DistributeFairly", result, map[uint16]uint64{
+	assert.Equal(t, result, map[uint16]uint64{
 		401: total / 4,
 		402: total / 4,
 		403: total / 4,
@@ -40,7 +39,7 @@ func TestDistributeFairlyWithLargeNumbers(t *testing.T) {
 		403: 0x8000000000000000,
 	}
 	result = DistributeFairly(total, requested)
-	assert.DeepEqual(t, "output of DistributeFairly", result, map[uint16]uint64{
+	assert.Equal(t, result, map[uint16]uint64{
 		401: total / 3,
 		402: total / 3,
 		403: total / 3,
@@ -59,7 +58,7 @@ func TestDistributeDemandFairlyWithJustBalance(t *testing.T) {
 		"bar": 1,
 	}
 	result := DistributeDemandFairly(total, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"foo": 267,
 		"bar": 133,
 	})
@@ -94,7 +93,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// usage cannot be covered
 	result := DistributeDemandFairly(200, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  125,
 		"second": 75,
 		"third":  0,
@@ -102,7 +101,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// usage is exactly covered
 	result = DistributeDemandFairly(800, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  500,
 		"second": 300,
 		"third":  0,
@@ -110,7 +109,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// unused commitments cannot be covered
 	result = DistributeDemandFairly(900, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  514,
 		"second": 357,
 		"third":  29,
@@ -118,7 +117,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// unused commitments are exactly covered
 	result = DistributeDemandFairly(1150, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  550,
 		"second": 500,
 		"third":  100,
@@ -126,7 +125,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// pending commitments cannot be covered
 	result = DistributeDemandFairly(1160, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  551,
 		"second": 502,
 		"third":  107,
@@ -134,7 +133,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// unused commitments are exactly covered
 	result = DistributeDemandFairly(1250, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  560,
 		"second": 520,
 		"third":  170,
@@ -142,7 +141,7 @@ func TestDistributeDemandFairlyWithIncreasingCapacity(t *testing.T) {
 
 	// extra capacity is distributed according to balance
 	result = DistributeDemandFairly(2250, demands, balance)
-	assert.DeepEqual(t, "output of DistributeDemandFairly", result, map[string]uint64{
+	assert.Equal(t, result, map[string]uint64{
 		"first":  560,
 		"second": 1020,
 		"third":  670,

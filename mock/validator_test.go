@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/sapcc/go-bits/assert"
+	"go.xyrillian.de/gg/assert"
+
 	"github.com/sapcc/go-bits/httptest"
 )
 
