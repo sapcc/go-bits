@@ -46,12 +46,12 @@ func newRabbitConnection(uri url.URL, queueName string) (*rabbitConnection, erro
 
 	// declare a queue to hold and deliver messages to consumers
 	_, err = ch.QueueDeclare(
-		queueName,                     // name of the queue
+		queueName,                            // name of the queue
 		queueName == dataplaneAuditQueueName, // durable: survive broker restart for the dataplane audit queue
-		false,        // autodelete when unused
-		false,        // exclusive: queue only accessible by connection that declares and deleted when the connection closes
-		false,        // noWait: the queue will assume to be declared on the server
-		nil,          // arguments for advanced config
+		false,                                // autodelete when unused
+		false,                                // exclusive: queue only accessible by connection that declares and deleted when the connection closes
+		false,                                // noWait: the queue will assume to be declared on the server
+		nil,                                  // arguments for advanced config
 	)
 	if err != nil {
 		return nil, fmt.Errorf("audittools: rabbitmq: failed to declare a queue: %w", err)
