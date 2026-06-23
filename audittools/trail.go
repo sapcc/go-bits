@@ -24,14 +24,14 @@ type auditTrail struct {
 // The OnSuccessfulPublish and OnFailedPublish closures are executed as per their respective case.
 //
 // This function blocks the current goroutine forever. It should be invoked with the "go" keyword.
-func (t auditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQueueName string, queueDurable bool) {
-	rc, err := newRabbitConnection(rabbitmqURI, rabbitmqQueueName, queueDurable)
+func (t auditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQueueName string) {
+	rc, err := newRabbitConnection(rabbitmqURI, rabbitmqQueueName)
 	if err != nil {
 		logg.Error(err.Error())
 	}
 
 	sendEvent := func(e *cadf.Event) bool {
-		rc = refreshConnectionIfClosedOrOld(rc, rabbitmqURI, rabbitmqQueueName, queueDurable)
+		rc = refreshConnectionIfClosedOrOld(rc, rabbitmqURI, rabbitmqQueueName)
 		err := rc.PublishEvent(ctx, e)
 		if err != nil {
 			t.OnFailedPublish()
@@ -75,7 +75,7 @@ func (t auditTrail) Commit(ctx context.Context, rabbitmqURI url.URL, rabbitmqQue
 	}
 }
 
-func refreshConnectionIfClosedOrOld(rc *rabbitConnection, uri url.URL, queueName string, queueDurable bool) *rabbitConnection {
+func refreshConnectionIfClosedOrOld(rc *rabbitConnection, uri url.URL, queueName string) *rabbitConnection {
 	if !rc.IsNilOrClosed() {
 		if time.Since(rc.LastConnectedAt) < 5*time.Minute {
 			return rc
@@ -83,7 +83,7 @@ func refreshConnectionIfClosedOrOld(rc *rabbitConnection, uri url.URL, queueName
 		rc.Disconnect()
 	}
 
-	connection, err := newRabbitConnection(uri, queueName, queueDurable)
+	connection, err := newRabbitConnection(uri, queueName)
 	if err != nil {
 		logg.Error(err.Error())
 		return nil

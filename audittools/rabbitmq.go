@@ -15,6 +15,10 @@ import (
 	"github.com/sapcc/go-api-declarations/cadf"
 )
 
+// dataplaneAuditQueueName is the well-known queue name used by the dataplane audit pipeline.
+// This queue must be declared as durable so it survives broker restarts.
+const dataplaneAuditQueueName = "dataplane.audit"
+
 // rabbitConnection represents a unique connection to some RabbitMQ server with
 // an open Channel and a declared Queue.
 type rabbitConnection struct {
@@ -27,7 +31,7 @@ type rabbitConnection struct {
 
 // newRabbitConnection returns a new rabbitConnection using the specified amqp URI
 // and queue name.
-func newRabbitConnection(uri url.URL, queueName string, queueDurable bool) (*rabbitConnection, error) {
+func newRabbitConnection(uri url.URL, queueName string) (*rabbitConnection, error) {
 	// establish a connection with the RabbitMQ server
 	conn, err := amqp.Dial(uri.String())
 	if err != nil {
@@ -42,8 +46,8 @@ func newRabbitConnection(uri url.URL, queueName string, queueDurable bool) (*rab
 
 	// declare a queue to hold and deliver messages to consumers
 	_, err = ch.QueueDeclare(
-		queueName,    // name of the queue
-		queueDurable, // durable: queue should survive cluster reset (or broker restart)
+		queueName,                     // name of the queue
+		queueName == dataplaneAuditQueueName, // durable: survive broker restart for the dataplane audit queue
 		false,        // autodelete when unused
 		false,        // exclusive: queue only accessible by connection that declares and deleted when the connection closes
 		false,        // noWait: the queue will assume to be declared on the server

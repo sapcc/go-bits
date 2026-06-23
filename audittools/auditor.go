@@ -59,10 +59,6 @@ type AuditorOpts struct {
 	ConnectionURL string
 	QueueName     string
 
-	// Optional. If true, the declared RabbitMQ queue will survive broker restarts.
-	// Defaults to false (transient queue).
-	QueueDurable bool
-
 	// Optional. If given, the Auditor will register its Prometheus metrics with this registry instead of the default registry.
 	// The following metrics are registered:
 	//   - "audittools_successful_submissions" (counter, no labels)
@@ -154,7 +150,7 @@ func NewAuditor(ctx context.Context, opts AuditorOpts) (Auditor, error) {
 		EventSink:           eventChan,
 		OnSuccessfulPublish: func() { successCounter.Inc() },
 		OnFailedPublish:     func() { failureCounter.Inc() },
-	}.Commit(ctx, rabbitURL, queueName, opts.QueueDurable)
+	}.Commit(ctx, rabbitURL, queueName)
 
 	return &standardAuditor{
 		Observer:  opts.Observer,
