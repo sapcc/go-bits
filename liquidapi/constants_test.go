@@ -211,7 +211,7 @@ func TestIsValidVMwareOSType(t *testing.T) {
 	}
 	for _, versionToCheck := range versionsToCheck {
 		t.Run(versionToCheck, func(t *testing.T) {
-			for _, regex := range isValidVMwareOSTypeRegex {
+			for _, regex := range isValidOSTypeRegex {
 				if regex.MatchString(versionToCheck) {
 					return
 				}

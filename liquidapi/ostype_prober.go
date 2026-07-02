@@ -161,12 +161,12 @@ func (p *OSTypeProber) findFromBootVolume(ctx context.Context, instanceID string
 		return "", err
 	}
 
-	for _, regex := range isValidVMwareOSTypeRegex {
+	for _, regex := range isValidOSTypeRegex {
 		if regex.MatchString(volume.ImageMetadata.VMwareOSType) {
 			return volume.ImageMetadata.VMwareOSType, nil
 		}
 	}
-	for _, regex := range isValidVMwareOSTypeRegex {
+	for _, regex := range isValidOSTypeRegex {
 		if regex.MatchString(volume.ImageMetadata.KVMOSType) {
 			return volume.ImageMetadata.KVMOSType, nil
 		}
@@ -192,14 +192,14 @@ func (p *OSTypeProber) findFromImage(ctx context.Context, imageID string) (strin
 	}
 
 	// prefer vmware_ostype attribute since this is validated by Nova upon booting the VM
-	for _, regex := range isValidVMwareOSTypeRegex {
+	for _, regex := range isValidOSTypeRegex {
 		if regex.MatchString(result.VMwareOSType) {
 			return result.VMwareOSType, nil
 		}
 	}
 
 	// fall back to kvm_ostype if vmware_ostype is not set
-	for _, regex := range isValidVMwareOSTypeRegex {
+	for _, regex := range isValidOSTypeRegex {
 		if regex.MatchString(result.KVMOSType) {
 			return result.KVMOSType, nil
 		}
@@ -207,7 +207,7 @@ func (p *OSTypeProber) findFromImage(ctx context.Context, imageID string) (strin
 
 	// on some images, vmware_ostype values are maintained as properties.os_distro instead
 	if osDistroStr, ok := result.Properties["os_distro"].(string); ok {
-		for _, regex := range isValidVMwareOSTypeRegex {
+		for _, regex := range isValidOSTypeRegex {
 			if regex.MatchString(osDistroStr) {
 				return osDistroStr, nil
 			}
