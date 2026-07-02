@@ -12,7 +12,7 @@ import (
 // so that we ensure our regexes catch all cases. Version updates should not
 // break this, only "net-new" OS types will break the test.
 
-func TestIsValidVMwareOSType(t *testing.T) {
+func TestIsValidOSType(t *testing.T) {
 	var versionsToCheck = []string{
 		"almalinux_64Guest",
 		"amazonlinux2_64Guest",
@@ -216,7 +216,7 @@ func TestIsValidVMwareOSType(t *testing.T) {
 					return
 				}
 			}
-			t.Fatal(`version "` + versionToCheck + `" is not valid according to any of the regexes in isValidVMwareOSTypeRegex, but it should be`)
+			t.Fatal(`version "` + versionToCheck + `" is not valid according to any of the regexes in isValidOSTypeRegex, but it should be`)
 		})
 	}
 }
