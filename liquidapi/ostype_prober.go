@@ -28,6 +28,8 @@ import (
 //   - "image-unknown", if no valid image reference exists in the instance metadata
 //   - "image-deleted", if the image has been deleted since the instance was booted
 //   - the value in the "vmware_ostype" attribute on the image metadata, if that field exists and the value is valid
+//   - the value in the "kvm_ostype" attribute on the image metadata, if that field exists and the value is valid
+//   - the value in the "properties.os_distro" attribute on the image metadata, if that field exists and the value is valid
 //   - "$TYPE", if the image metadata contains a tag of the form "ostype:$TYPE"
 //   - "unknown", if no other rule matches
 //
@@ -37,6 +39,7 @@ import (
 //   - "rootdisk-missing", if the boot volume has an empty ID
 //   - "rootdisk-inspect-error", if the boot volume cannot be located or if its metadata cannot be inspected in Glance
 //   - the value in the "volume_image_metadata.vmware_ostype" attribute on the volume metadata, if that field exists and the value is valid
+//   - the value in the "volume_image_metadata.kvm_ostype" attribute on the volume metadata, if that field exists and the value is valid
 //   - "unknown", if no other rule matches
 type OSTypeProber struct {
 	// caches for repeated queries
@@ -150,6 +153,7 @@ func (p *OSTypeProber) findFromBootVolume(ctx context.Context, instanceID string
 	var volume struct {
 		ImageMetadata struct {
 			VMwareOSType string `json:"vmware_ostype"`
+			KVMOSType    string `json:"kvm_ostype"`
 		} `json:"volume_image_metadata"`
 	}
 	err = volumes.Get(ctx, p.CinderV3, rootVolumeID).ExtractInto(&volume)
@@ -162,6 +166,11 @@ func (p *OSTypeProber) findFromBootVolume(ctx context.Context, instanceID string
 			return volume.ImageMetadata.VMwareOSType, nil
 		}
 	}
+	for _, regex := range isValidVMwareOSTypeRegex {
+		if regex.MatchString(volume.ImageMetadata.KVMOSType) {
+			return volume.ImageMetadata.KVMOSType, nil
+		}
+	}
 	return "unknown", nil
 }
 
@@ -169,6 +178,7 @@ func (p *OSTypeProber) findFromImage(ctx context.Context, imageID string) (strin
 	var result struct {
 		Tags         []string       `json:"tags"`
 		VMwareOSType string         `json:"vmware_ostype"`
+		KVMOSType    string         `json:"kvm_ostype"`
 		Properties   map[string]any `json:"properties"`
 	}
 	err := images.Get(ctx, p.GlanceV2, imageID).ExtractInto(&result)
@@ -185,6 +195,13 @@ func (p *OSTypeProber) findFromImage(ctx context.Context, imageID string) (strin
 	for _, regex := range isValidVMwareOSTypeRegex {
 		if regex.MatchString(result.VMwareOSType) {
 			return result.VMwareOSType, nil
+		}
+	}
+
+	// fall back to kvm_ostype if vmware_ostype is not set
+	for _, regex := range isValidVMwareOSTypeRegex {
+		if regex.MatchString(result.KVMOSType) {
+			return result.KVMOSType, nil
 		}
 	}
 
