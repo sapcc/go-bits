@@ -30,7 +30,8 @@ reuse:
   annotations:
     - paths:
       - httpapi/fixtures/metrics.prom
-      - httptest/fixtures/example.*
+      - httptest/fixtures/*.json
+      - httptest/fixtures/*.txt
       - tools/release-info/go.mod
       SPDX-FileCopyrightText: SAP SE or an SAP affiliate company
       SPDX-License-Identifier: Apache-2.0
