@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/databus23/goslo.policy v0.0.0-20250326134918-4afc2c56a903
-	github.com/gofrs/uuid/v5 v5.5.0
+	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/go-cmp v0.7.0
 	github.com/gophercloud/gophercloud/v2 v2.13.0
@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/common v0.70.1
 	github.com/rabbitmq/amqp091-go v1.13.0
 	github.com/sapcc/go-api-declarations v1.24.0
-	go.xyrillian.de/gg v1.11.1
+	go.xyrillian.de/gg v1.13.3
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
