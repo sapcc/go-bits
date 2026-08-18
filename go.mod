@@ -13,9 +13,9 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/common v0.70.1
-	github.com/rabbitmq/amqp091-go v1.13.0
+	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/sapcc/go-api-declarations v1.24.0
-	go.xyrillian.de/gg v1.13.3
+	go.xyrillian.de/gg v1.14.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
