@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/itchyny/gojq v0.12.19
 	github.com/prometheus/client_golang v1.24.1
-	github.com/prometheus/common v0.70.1
+	github.com/prometheus/common v0.71.0
 	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/sapcc/go-api-declarations v1.25.0
 	go.xyrillian.de/gg v1.14.0
@@ -42,7 +42,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/natefinch/atomic v1.0.1 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
@@ -50,5 +49,5 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 )
