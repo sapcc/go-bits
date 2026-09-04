@@ -161,8 +161,8 @@ func TestMetrics(t *testing.T) {
 
 type metricsTestingAPI struct{}
 
-func (m metricsTestingAPI) AddTo(r *mux.Router) {
-	r.Methods("POST").Path("/sleep/{secs}/return/{count}").HandlerFunc(m.handleRequest)
+func (m metricsTestingAPI) AddTo(c *Composer) {
+	c.Router().Methods("POST").Path("/sleep/{secs}/return/{count}").HandlerFunc(m.handleRequest)
 }
 
 func (m metricsTestingAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -233,16 +233,16 @@ func TestIdentifyEndpointOverridesNamer(t *testing.T) {
 
 type endpointNamerTestAPI struct{}
 
-func (a endpointNamerTestAPI) AddTo(r *mux.Router) {
-	r.Methods("GET").Path("/test-namer").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (a endpointNamerTestAPI) AddTo(c *Composer) {
+	c.Router().Methods("GET").Path("/test-namer").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ok", http.StatusOK)
 	})
 }
 
 type endpointIdentifyTestAPI struct{}
 
-func (a endpointIdentifyTestAPI) AddTo(r *mux.Router) {
-	r.Methods("GET").Path("/test-identify").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (a endpointIdentifyTestAPI) AddTo(c *Composer) {
+	c.Router().Methods("GET").Path("/test-identify").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		IdentifyEndpoint(r, "handler-explicit-endpoint")
 		http.Error(w, "ok", http.StatusOK)
 	})
