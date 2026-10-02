@@ -36,9 +36,21 @@ func AssertDBContent(t TestingT, db *sql.DB, fixtureFile string) {
 // Tracker keeps a copy of the database contents and allows for checking the
 // database contents (or changes made to them) during tests.
 type Tracker struct {
-	t    TestingT
-	db   *sql.DB
-	snap dbSnapshot
+	t                              TestingT
+	db                             *sql.DB
+	snap                           dbSnapshot
+	considerUniqueConstraintForKey bool
+}
+
+// TrackerSetupFunction is an Option that can be supplied to NewTracker.
+type TrackerSetupFunction func(*Tracker)
+
+// ConsiderUniqueConstraintForKey updates the tracker to consider unique columns
+// as part of the key which is used to identify and order the records.
+// It returns the trackers identity to be chainable.
+// This behavior is helpful, when a table has no primary key, but unique columns.
+func ConsiderUniqueConstraintForKey(tr *Tracker) {
+	tr.considerUniqueConstraintForKey = true
 }
 
 // NewTracker creates a new Tracker.
@@ -48,17 +60,21 @@ type Tracker struct {
 // desired to assert on the full DB contents when creating the tracker. Calling
 // Tracker.DBContent() directly after NewTracker() would do a useless second
 // snapshot.
-func NewTracker(t TestingT, db *sql.DB) (*Tracker, Assertable) {
+func NewTracker(t TestingT, db *sql.DB, options ...TrackerSetupFunction) (*Tracker, Assertable) {
 	t.Helper()
-	snap := newDBSnapshot(t, db)
-	return &Tracker{t, db, snap}, Assertable{t, snap.ToSQL(nil)}
+	tr := &Tracker{t, db, dbSnapshot{}, false}
+	for _, option := range options {
+		option(tr)
+	}
+	tr.snap = newDBSnapshot(t, db, tr.considerUniqueConstraintForKey)
+	return tr, Assertable{t, tr.snap.ToSQL(nil)}
 }
 
 // DBContent produces a dump of the current database contents, as a sequence of
 // INSERT statements on which test assertions can be executed.
 func (t *Tracker) DBContent() Assertable {
 	t.t.Helper()
-	t.snap = newDBSnapshot(t.t, t.db)
+	t.snap = newDBSnapshot(t.t, t.db, t.considerUniqueConstraintForKey)
 	return Assertable{t.t, t.snap.ToSQL(nil)}
 }
 
@@ -67,7 +83,7 @@ func (t *Tracker) DBContent() Assertable {
 // which test assertions can be executed.
 func (t *Tracker) DBChanges() Assertable {
 	t.t.Helper()
-	snap := newDBSnapshot(t.t, t.db)
+	snap := newDBSnapshot(t.t, t.db, t.considerUniqueConstraintForKey)
 	diff := snap.ToSQL(t.snap)
 	t.snap = snap
 	return Assertable{t.t, diff}
