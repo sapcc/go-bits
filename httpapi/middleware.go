@@ -5,6 +5,7 @@ package httpapi
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"net/http"
@@ -93,8 +94,8 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				httpext.GetRequesterIPFor(r), userID,
 				r.Method, r.URL.String(), r.Proto,
 				writer.statusCode, writer.bytesWritten,
-				stringOrDefault("-", r.Header.Get("Referer")),
-				stringOrDefault("-", r.Header.Get("User-Agent")),
+				cmp.Or(r.Header.Get("Referer"), "-"),
+				cmp.Or(r.Header.Get("User-Agent"), "-"),
 				duration.Seconds(),
 			)
 		}
@@ -120,13 +121,6 @@ func getLabels(statusCode int, endpointID string, r *http.Request) prometheus.La
 	}
 
 	return l
-}
-
-func stringOrDefault(defaultValue, value string) string {
-	if value == "" {
-		return defaultValue
-	}
-	return value
 }
 
 // A custom response writer that collects information about the response to
