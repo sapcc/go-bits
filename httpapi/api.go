@@ -67,7 +67,7 @@ func (h HealthCheckAPI) handleRequest(w http.ResponseWriter, r *http.Request) {
 // API. The AddTo() implementation is empty; Compose() will call the provided
 // configure() method instead.
 type pseudoAPI struct {
-	configure func(*middleware)
+	configure func(*outermostMiddleware)
 }
 
 // AddTo implements the API interface.
@@ -75,26 +75,25 @@ func (p pseudoAPI) AddTo(c *Composer) {
 	// no-op, see above
 }
 
-// WithoutLogging can be given as an argument to Compose() to disable request
-// logging for the entire http.Handler returned by Compose().
+// WithoutLogging can be given as an argument to [Compose] to disable request logging for the entire [http.Handler] returned by it.
 //
 // This modifier is intended for use during unit tests.
 func WithoutLogging() API {
 	return pseudoAPI{
-		configure: func(m *middleware) {
+		configure: func(m *outermostMiddleware) {
 			m.skipAllLogs = true
 		},
 	}
 }
 
-// WithGlobalMiddleware can be given as an argument to Compose() to add a
-// middleware to the entire http.Handler returned by Compose(). This is a
-// similar effect to using mux.Router.Use() inside an API's AddTo() method, but
-// explicitly declaring a global middleware like this is clearer than hiding it
-// in one specific API implementation.
+// WithGlobalMiddleware can be given as an argument to [Compose] to add a middleware to the entire [http.Handler] returned by it.
+// This should be preferred over using c.Router().Use() inside an API's AddTo() method because:
+//
+//   - Explicitly declaring a global middleware like this is cleaner than hiding it inside a specific API implementation.
+//   - Middlewares declared through this method also affect endpoints located in handlers that do not use gorilla/mux routing.
 func WithGlobalMiddleware(globalMiddleware func(http.Handler) http.Handler) API {
 	return pseudoAPI{
-		configure: func(m *middleware) {
+		configure: func(m *outermostMiddleware) {
 			m.inner = globalMiddleware(m.inner)
 		},
 	}

@@ -17,7 +17,7 @@ func Compose(apis ...API) http.Handler {
 
 	r := mux.NewRouter()
 	c := &Composer{r}
-	m := middleware{inner: r}
+	m := outermostMiddleware{inner: r}
 
 	for _, a := range apis {
 		switch a := a.(type) {

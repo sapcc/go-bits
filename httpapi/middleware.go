@@ -32,14 +32,16 @@ var EndpointNamer func(r *http.Request) Option[string] = func(r *http.Request) O
 	return None[string]()
 }
 
-// A http.Handler middleware that adds all the special behavior for this package.
-type middleware struct {
+// A middleware that adds the logging and metrics instrumentation provided by this package.
+// This is the [http.Handler] instance that is returned by [Compose] and thus where requests first arrive, hence the name.
+// Middlewares supplied through [WithGlobalMiddleware] are attached directly below this middleware by manipulating the "inner" handler.
+type outermostMiddleware struct {
 	inner       http.Handler
 	skipAllLogs bool
 }
 
 // ServeHTTP implements the http.Handler interface.
-func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (m outermostMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	skipLog := false
 	endpointID := "unknown"
 	userID := "-"
