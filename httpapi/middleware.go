@@ -43,6 +43,12 @@ func (m middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	endpointID := "unknown"
 	userID := "-"
 
+	if EndpointNamer != nil {
+		if name, ok := EndpointNamer(r).Unpack(); ok {
+			endpointID = name
+		}
+	}
+
 	// provide a back-channel for our custom out-of-band messages to the request handler
 	// (this is used by SkipRequestLog etc.)
 	ctx := context.WithValue(r.Context(), oobFunctionKey, func(msg oobMessage) {
