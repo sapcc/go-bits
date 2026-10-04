@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/common v0.70.1
 	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/sapcc/go-api-declarations v1.25.1
-	go.xyrillian.de/gg v1.16.0
+	go.xyrillian.de/gg v1.17.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )

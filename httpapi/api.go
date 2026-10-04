@@ -7,6 +7,12 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"go.xyrillian.de/gg/pathrouter"
+)
+
+var (
+	// force imports that are used in docstring links
+	_ pathrouter.Matcher = nil
 )
 
 // API is the interface that applications can use to plug their own API
@@ -32,6 +38,20 @@ func (c *Composer) Router() *mux.Router {
 		c.h.muxRouter = mux.NewRouter()
 	}
 	return c.h.muxRouter
+}
+
+// AddTryHandler registers an endpoint or set of endpoints represented as a [TryHandler].
+// This can be used e.g. to register [pathrouter.Matcher] instances.
+func (c *Composer) AddTryHandler(handler TryHandler) {
+	c.h.tryHandlers = append(c.h.tryHandlers, handler)
+}
+
+// TryHandler is an interface that works like [http.Handler] with the additional ability of rejecting requests that do not match this handler.
+// If false is returned from TryServeHTTP(), the caller shall try to proceed with another handler if possible, or explicitly render a 404 response otherwise.
+//
+// This interface is implemented e.g. by [pathrouter.Matcher].
+type TryHandler interface {
+	TryServeHTTP(w http.ResponseWriter, r *http.Request) bool
 }
 
 // HealthCheckAPI is an API with one endpoint, "GET /healthcheck", that

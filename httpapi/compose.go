@@ -15,9 +15,7 @@ import (
 func Compose(apis ...API) http.Handler {
 	autoConfigureMetricsIfNecessary()
 
-	ch := &composedHandler{
-		muxRouter: nil, // initialized on first use
-	}
+	ch := &composedHandler{}
 	c := &Composer{ch}
 	m := outermostMiddleware{inner: ch}
 
@@ -40,16 +38,27 @@ func Compose(apis ...API) http.Handler {
 //
 // This type is separate from [Composer], which constitutes its public interface.
 type composedHandler struct {
-	muxRouter *mux.Router // initialized when Composer.Router() is first used
+	tryHandlers []TryHandler
+	muxRouter   *mux.Router // initialized when Composer.Router() is first used
 }
 
 // ServeHTTP implements the [http.Handler] interface.
-func (c *composedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if c.muxRouter == nil {
-		http.NotFound(w, r)
-	} else {
-		c.muxRouter.ServeHTTP(w, r)
+func (h *composedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// if we have TryHandlers, use them first (they are likely more efficient than gorilla/mux)
+	for _, th := range h.tryHandlers {
+		if th.TryServeHTTP(w, r) {
+			return
+		}
 	}
+
+	// check gorilla/mux routes if we have any
+	if h.muxRouter != nil {
+		h.muxRouter.ServeHTTP(w, r)
+		return
+	}
+
+	// fallback if nothing matches
+	http.NotFound(w, r)
 }
 
 type oobKey string

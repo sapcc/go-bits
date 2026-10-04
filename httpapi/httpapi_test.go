@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.xyrillian.de/gg/assert"
 	. "go.xyrillian.de/gg/option"
+	"go.xyrillian.de/gg/pathrouter"
 
 	"github.com/sapcc/go-bits/httptest"
 	"github.com/sapcc/go-bits/logg"
@@ -131,6 +132,43 @@ func TestLogging(t *testing.T) {
 	h.RespondTo(ctx, "GET /healthcheck").
 		ExpectText(t, http.StatusInternalServerError, "log suppression too strong\n")
 	expectLog("")
+}
+
+func TestRoutingOptions(t *testing.T) {
+	ctx := t.Context()
+	h := httptest.NewHandler(Compose(routingTestingAPI{}))
+
+	// GET /foo is routed via gorilla/mux
+	h.RespondTo(ctx, "GET /foo").
+		ExpectText(t, http.StatusOK, "called /foo\n")
+	h.RespondTo(ctx, "POST /foo").
+		ExpectStatus(t, http.StatusMethodNotAllowed)
+
+	h.RespondTo(ctx, "GET /bar").
+		ExpectText(t, http.StatusOK, "called /bar\n")
+	h.RespondTo(ctx, "POST /bar").
+		ExpectStatus(t, http.StatusMethodNotAllowed)
+
+	h.RespondTo(ctx, "GET /baz").
+		ExpectStatus(t, http.StatusNotFound)
+}
+
+type routingTestingAPI struct{}
+
+func (r routingTestingAPI) AddTo(c *Composer) {
+	// GET /foo is routed via gorilla/mux
+	c.Router().Methods("GET").Path("/foo").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		IdentifyEndpoint(r, "/foo")
+		http.Error(w, "called /foo", http.StatusOK)
+	})
+
+	// GET /bar is routed via gg/pathrouter
+	c.AddTryHandler(pathrouter.Element("bar", pathrouter.Handlers(pathrouter.ByMethod{
+		http.MethodGet: func(w http.ResponseWriter, r *http.Request, rc pathrouter.Context) {
+			IdentifyEndpoint(r, "/bar")
+			http.Error(w, "called /bar", http.StatusOK)
+		},
+	})))
 }
 
 func TestMetrics(t *testing.T) {
