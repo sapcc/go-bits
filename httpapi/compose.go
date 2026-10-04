@@ -15,9 +15,11 @@ import (
 func Compose(apis ...API) http.Handler {
 	autoConfigureMetricsIfNecessary()
 
-	r := mux.NewRouter()
-	c := &Composer{r}
-	m := outermostMiddleware{inner: r}
+	ch := &composedHandler{
+		muxRouter: nil, // initialized on first use
+	}
+	c := &Composer{ch}
+	m := outermostMiddleware{inner: ch}
 
 	for _, a := range apis {
 		switch a := a.(type) {
@@ -28,8 +30,26 @@ func Compose(apis ...API) http.Handler {
 		}
 	}
 
-	h := http.Handler(m)
-	return h
+	return http.Handler(m)
+}
+
+// composedHandler is the http.Handler holding all API endpoints that were given to a single [Compose] call.
+// The only thing not in here are global middlewares registered via [WithGlobalMiddleware], which are wrapped outside this type:
+// The type [outermostMiddleware] is initially constructed holding this type as its inner handler,
+// and then middlewares wrap that slot.
+//
+// This type is separate from [Composer], which constitutes its public interface.
+type composedHandler struct {
+	muxRouter *mux.Router // initialized when Composer.Router() is first used
+}
+
+// ServeHTTP implements the [http.Handler] interface.
+func (c *composedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if c.muxRouter == nil {
+		http.NotFound(w, r)
+	} else {
+		c.muxRouter.ServeHTTP(w, r)
+	}
 }
 
 type oobKey string

@@ -10,12 +10,12 @@ import (
 )
 
 // API is the interface that applications can use to plug their own API
-// endpoints into the http.Handler constructed by this package's Compose()
+// endpoints into the [http.Handler] constructed by this package's [Compose]
 // function.
 //
 // In this package, some special API instances with names like "With..." and
 // "Without..." are available that apply to the entire http.Handler returned by
-// Compose(), instead of just adding endpoints to it.
+// [Compose], instead of just adding endpoints to it.
 type API interface {
 	AddTo(c *Composer)
 }
@@ -23,12 +23,15 @@ type API interface {
 // Composer is the argument type given to the AddTo() method of [API].
 // API implementations can use the methods on this type to register their endpoints.
 type Composer struct {
-	r *mux.Router
+	h *composedHandler
 }
 
 // Router returns a [mux.Router] where APIs can register endpoints.
 func (c *Composer) Router() *mux.Router {
-	return c.r
+	if c.h.muxRouter == nil {
+		c.h.muxRouter = mux.NewRouter()
+	}
+	return c.h.muxRouter
 }
 
 // HealthCheckAPI is an API with one endpoint, "GET /healthcheck", that
