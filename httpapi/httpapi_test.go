@@ -23,7 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.xyrillian.de/gg/assert"
-	. "go.xyrillian.de/gg/option"
+	"go.xyrillian.de/gg/pathrouter"
 
 	"github.com/sapcc/go-bits/httptest"
 	"github.com/sapcc/go-bits/logg"
@@ -133,6 +133,43 @@ func TestLogging(t *testing.T) {
 	expectLog("")
 }
 
+func TestRoutingOptions(t *testing.T) {
+	ctx := t.Context()
+	h := httptest.NewHandler(Compose(routingTestingAPI{}))
+
+	// GET /foo is routed via gorilla/mux
+	h.RespondTo(ctx, "GET /foo").
+		ExpectText(t, http.StatusOK, "called /foo\n")
+	h.RespondTo(ctx, "POST /foo").
+		ExpectStatus(t, http.StatusMethodNotAllowed)
+
+	h.RespondTo(ctx, "GET /bar").
+		ExpectText(t, http.StatusOK, "called /bar\n")
+	h.RespondTo(ctx, "POST /bar").
+		ExpectStatus(t, http.StatusMethodNotAllowed)
+
+	h.RespondTo(ctx, "GET /baz").
+		ExpectStatus(t, http.StatusNotFound)
+}
+
+type routingTestingAPI struct{}
+
+func (r routingTestingAPI) AddTo(c *Composer) {
+	// GET /foo is routed via gorilla/mux
+	c.Router().Methods("GET").Path("/foo").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		IdentifyEndpoint(r, "/foo")
+		http.Error(w, "called /foo", http.StatusOK)
+	})
+
+	// GET /bar is routed via gg/pathrouter
+	c.AddTryHandler(pathrouter.Element("bar", pathrouter.Handlers(pathrouter.ByMethod{
+		http.MethodGet: func(w http.ResponseWriter, r *http.Request, rc pathrouter.Context) {
+			IdentifyEndpoint(r, "/bar")
+			http.Error(w, "called /bar", http.StatusOK)
+		},
+	})))
+}
+
 func TestMetrics(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx := t.Context()
@@ -180,80 +217,6 @@ func (m metricsTestingAPI) handleRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.Write(bytes.Repeat([]byte("."), count)) //nolint:errcheck
-}
-
-func TestEndpointNamerSetsLabel(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctx := t.Context()
-		registry := prometheus.NewPedanticRegistry()
-		testSetRegisterer(registry)
-
-		origNamer := EndpointNamer
-		t.Cleanup(func() { EndpointNamer = origNamer })
-		EndpointNamer = func(r *http.Request) Option[string] {
-			return Some("namer-derived-endpoint")
-		}
-
-		h := httptest.NewHandler(Compose(endpointNamerTestAPI{}, WithoutLogging()))
-		resp := h.RespondTo(ctx, "GET /test-namer")
-		assert.Equal(t, resp.StatusCode(), http.StatusOK)
-
-		metricsBody := gatherMetricsText(registry)
-		if !strings.Contains(metricsBody, `endpoint="namer-derived-endpoint"`) {
-			t.Errorf("expected endpoint label \"namer-derived-endpoint\" in metrics, got:\n%s", metricsBody)
-		}
-	})
-}
-
-func TestIdentifyEndpointOverridesNamer(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ctx := t.Context()
-		registry := prometheus.NewPedanticRegistry()
-		testSetRegisterer(registry)
-
-		origNamer := EndpointNamer
-		t.Cleanup(func() { EndpointNamer = origNamer })
-		EndpointNamer = func(r *http.Request) Option[string] {
-			return Some("namer-derived-endpoint")
-		}
-
-		h := httptest.NewHandler(Compose(endpointIdentifyTestAPI{}, WithoutLogging()))
-		resp := h.RespondTo(ctx, "GET /test-identify")
-		assert.Equal(t, resp.StatusCode(), http.StatusOK)
-
-		metricsBody := gatherMetricsText(registry)
-		if !strings.Contains(metricsBody, `endpoint="handler-explicit-endpoint"`) {
-			t.Errorf("expected endpoint label \"handler-explicit-endpoint\" in metrics, got:\n%s", metricsBody)
-		}
-		if strings.Contains(metricsBody, `endpoint="namer-derived-endpoint"`) {
-			t.Error("endpoint label \"namer-derived-endpoint\" should have been overridden by IdentifyEndpoint")
-		}
-	})
-}
-
-type endpointNamerTestAPI struct{}
-
-func (a endpointNamerTestAPI) AddTo(c *Composer) {
-	c.Router().Methods("GET").Path("/test-namer").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "ok", http.StatusOK)
-	})
-}
-
-type endpointIdentifyTestAPI struct{}
-
-func (a endpointIdentifyTestAPI) AddTo(c *Composer) {
-	c.Router().Methods("GET").Path("/test-identify").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		IdentifyEndpoint(r, "handler-explicit-endpoint")
-		http.Error(w, "ok", http.StatusOK)
-	})
-}
-
-func gatherMetricsText(registry *prometheus.Registry) string {
-	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	rec := httptest_std.NewRecorder()
-	req := httptest_std.NewRequest("GET", "/metrics", http.NoBody)
-	h.ServeHTTP(rec, req)
-	return rec.Body.String()
 }
 
 func promhttpNormalizer(inner http.Handler) http.Handler {
