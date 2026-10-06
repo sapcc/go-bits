@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 
+	. "go.xyrillian.de/gg/option"
+
 	"github.com/sapcc/go-bits/internal/testdiff"
 	"github.com/sapcc/go-bits/osext"
 )
@@ -36,21 +38,22 @@ func AssertDBContent(t TestingT, db *sql.DB, fixtureFile string) {
 // Tracker keeps a copy of the database contents and allows for checking the
 // database contents (or changes made to them) during tests.
 type Tracker struct {
-	t                              TestingT
-	db                             *sql.DB
-	snap                           dbSnapshot
-	considerUniqueConstraintForKey bool
+	t                                      TestingT
+	db                                     *sql.DB
+	snap                                   dbSnapshot
+	considerUniqueConstraintForKeyInTables Option[regexp.Regexp]
 }
 
-// TrackerSetupFunction is an Option that can be supplied to NewTracker.
-type TrackerSetupFunction func(*Tracker)
+// TrackerSetupOption is an Option that can be supplied to NewTracker.
+type TrackerSetupOption func(*Tracker)
 
-// ConsiderUniqueConstraintForKey updates the tracker to consider unique columns
-// as part of the key which is used to identify and order the records.
-// It returns the trackers identity to be chainable.
+// ConsiderUniqueConstraintForKeyInTables generates a [TrackerSetupOption] that instructs the tracker
+// to consider unique columns as part of the key which is used to identify and order the records.
 // This behavior is helpful, when a table has no primary key, but unique columns.
-func ConsiderUniqueConstraintForKey(tr *Tracker) {
-	tr.considerUniqueConstraintForKey = true
+func ConsiderUniqueConstraintForKeyInTables(tableRegex regexp.Regexp) TrackerSetupOption {
+	return func(t *Tracker) {
+		t.considerUniqueConstraintForKeyInTables = Some(tableRegex)
+	}
 }
 
 // NewTracker creates a new Tracker.
@@ -60,13 +63,13 @@ func ConsiderUniqueConstraintForKey(tr *Tracker) {
 // desired to assert on the full DB contents when creating the tracker. Calling
 // Tracker.DBContent() directly after NewTracker() would do a useless second
 // snapshot.
-func NewTracker(t TestingT, db *sql.DB, options ...TrackerSetupFunction) (*Tracker, Assertable) {
+func NewTracker(t TestingT, db *sql.DB, options ...TrackerSetupOption) (*Tracker, Assertable) {
 	t.Helper()
-	tr := &Tracker{t, db, dbSnapshot{}, false}
+	tr := &Tracker{t, db, dbSnapshot{}, None[regexp.Regexp]()}
 	for _, option := range options {
 		option(tr)
 	}
-	tr.snap = newDBSnapshot(t, db, tr.considerUniqueConstraintForKey)
+	tr.snap = newDBSnapshot(t, db, tr.considerUniqueConstraintForKeyInTables)
 	return tr, Assertable{t, tr.snap.ToSQL(nil)}
 }
 
@@ -74,7 +77,7 @@ func NewTracker(t TestingT, db *sql.DB, options ...TrackerSetupFunction) (*Track
 // INSERT statements on which test assertions can be executed.
 func (t *Tracker) DBContent() Assertable {
 	t.t.Helper()
-	t.snap = newDBSnapshot(t.t, t.db, t.considerUniqueConstraintForKey)
+	t.snap = newDBSnapshot(t.t, t.db, t.considerUniqueConstraintForKeyInTables)
 	return Assertable{t.t, t.snap.ToSQL(nil)}
 }
 
@@ -83,7 +86,7 @@ func (t *Tracker) DBContent() Assertable {
 // which test assertions can be executed.
 func (t *Tracker) DBChanges() Assertable {
 	t.t.Helper()
-	snap := newDBSnapshot(t.t, t.db, t.considerUniqueConstraintForKey)
+	snap := newDBSnapshot(t.t, t.db, t.considerUniqueConstraintForKeyInTables)
 	diff := snap.ToSQL(t.snap)
 	t.snap = snap
 	return Assertable{t.t, diff}

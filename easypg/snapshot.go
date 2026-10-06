@@ -6,10 +6,13 @@ package easypg
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	. "go.xyrillian.de/gg/option"
 )
 
 // NOTE: This file contains various private types for taking and diffing
@@ -33,7 +36,7 @@ const (
 		FROM information_schema.key_column_usage kcu
 		JOIN information_schema.table_constraints tc
 		ON tc.constraint_name = kcu.constraint_name
-		WHERE kcu.table_schema = 'public' AND kcu.table_name != 'schema_migrations' AND kcu.position_in_unique_constraint IS NULL AND (tc.constraint_type = 'PRIMARY KEY' OR (tc.constraint_type = 'UNIQUE' AND $1 = true))
+		WHERE kcu.table_schema = 'public' AND kcu.table_name != 'schema_migrations' AND kcu.position_in_unique_constraint IS NULL AND (tc.constraint_type = 'PRIMARY KEY' OR ($1 IS NOT NULL AND tc.constraint_type = 'UNIQUE' AND REGEXP_LIKE(kcu.table_name, $1) = true))
 	`
 	listColumnDefaultsQuery = `
 		SELECT table_name, column_name, is_nullable, column_default FROM information_schema.columns
@@ -41,7 +44,7 @@ const (
 	`
 )
 
-func newDBSnapshot(t TestingT, db *sql.DB, considerUniqueConstraintForKey bool) dbSnapshot {
+func newDBSnapshot(t TestingT, db *sql.DB, considerUniqueConstraintForKeyInTables Option[regexp.Regexp]) dbSnapshot {
 	t.Helper()
 
 	// list all tables
@@ -57,8 +60,12 @@ func newDBSnapshot(t TestingT, db *sql.DB, considerUniqueConstraintForKey bool) 
 	failOnErr(t, rows.Close()) //nolint:sqlclosecheck
 
 	// list key columns for all tables
-	KeyColumnNames := make(map[string][]string)
-	rows, err = db.Query(listKeyColumnsQuery, considerUniqueConstraintForKey)
+	keyColumnNames := make(map[string][]string)
+	var pattern Option[string]
+	if re, ok := considerUniqueConstraintForKeyInTables.Unpack(); ok {
+		pattern = Some(re.String())
+	}
+	rows, err = db.Query(listKeyColumnsQuery, pattern)
 	failOnErr(t, err)
 	for rows.Next() {
 		var (
@@ -66,8 +73,8 @@ func newDBSnapshot(t TestingT, db *sql.DB, considerUniqueConstraintForKey bool) 
 			columnName string
 		)
 		failOnErr(t, rows.Scan(&tableName, &columnName))
-		if !slices.Contains(KeyColumnNames[tableName], columnName) {
-			KeyColumnNames[tableName] = append(KeyColumnNames[tableName], columnName)
+		if !slices.Contains(keyColumnNames[tableName], columnName) {
+			keyColumnNames[tableName] = append(keyColumnNames[tableName], columnName)
 		}
 	}
 	failOnErr(t, rows.Err())
@@ -110,7 +117,7 @@ func newDBSnapshot(t TestingT, db *sql.DB, considerUniqueConstraintForKey bool) 
 	// snapshot all tables
 	result := make(dbSnapshot, len(tableNames))
 	for _, tableName := range tableNames {
-		result[tableName] = newTableSnapshot(t, db, tableName, KeyColumnNames[tableName], columnDefaults[tableName])
+		result[tableName] = newTableSnapshot(t, db, tableName, keyColumnNames[tableName], columnDefaults[tableName])
 	}
 	return result
 }
