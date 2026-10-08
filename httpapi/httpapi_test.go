@@ -163,7 +163,7 @@ func (r routingTestingAPI) AddTo(c *Composer) {
 
 	// GET /bar is routed via gg/pathrouter
 	c.AddTryHandler(pathrouter.Element("bar", pathrouter.Handlers(pathrouter.ByMethod{
-		http.MethodGet: func(w http.ResponseWriter, r *http.Request, rc pathrouter.Context) {
+		http.MethodGet: func(w http.ResponseWriter, r *http.Request) {
 			IdentifyEndpoint(r, "/bar")
 			http.Error(w, "called /bar", http.StatusOK)
 		},
