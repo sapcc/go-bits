@@ -6,13 +6,16 @@ package easypg
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	. "go.xyrillian.de/gg/option"
 )
 
-//NOTE: This file contains various private types for taking and diffing
+// NOTE: This file contains various private types for taking and diffing
 // database snapshots and serializing them into SQL statements. The public API
 // for these types is in `testhelpers.go`.
 
@@ -29,8 +32,11 @@ const (
 		ORDER BY table_name COLLATE "C"
 	`
 	listKeyColumnsQuery = `
-		SELECT table_name, column_name FROM information_schema.key_column_usage
-		WHERE table_schema = 'public' AND table_name != 'schema_migrations' AND position_in_unique_constraint IS NULL
+		SELECT kcu.table_name, kcu.column_name
+		FROM information_schema.key_column_usage kcu
+		JOIN information_schema.table_constraints tc
+		ON tc.constraint_name = kcu.constraint_name
+		WHERE kcu.table_schema = 'public' AND kcu.table_name != 'schema_migrations' AND kcu.position_in_unique_constraint IS NULL AND (tc.constraint_type = 'PRIMARY KEY' OR ($1 IS NOT NULL AND tc.constraint_type = 'UNIQUE' AND REGEXP_LIKE(kcu.table_name, $1) = true))
 	`
 	listColumnDefaultsQuery = `
 		SELECT table_name, column_name, is_nullable, column_default FROM information_schema.columns
@@ -38,7 +44,7 @@ const (
 	`
 )
 
-func newDBSnapshot(t TestingT, db *sql.DB) dbSnapshot {
+func newDBSnapshot(t TestingT, db *sql.DB, considerUniqueConstraintForKeyInTables Option[regexp.Regexp]) dbSnapshot {
 	t.Helper()
 
 	// list all tables
@@ -55,7 +61,11 @@ func newDBSnapshot(t TestingT, db *sql.DB) dbSnapshot {
 
 	// list key columns for all tables
 	keyColumnNames := make(map[string][]string)
-	rows, err = db.Query(listKeyColumnsQuery)
+	var pattern Option[string]
+	if re, ok := considerUniqueConstraintForKeyInTables.Unpack(); ok {
+		pattern = Some(re.String())
+	}
+	rows, err = db.Query(listKeyColumnsQuery, pattern)
 	failOnErr(t, err)
 	for rows.Next() {
 		var (
@@ -116,7 +126,7 @@ func newDBSnapshot(t TestingT, db *sql.DB) dbSnapshot {
 // starting from `prev`. If `prev` is nil, only INSERT statements will be
 // returned.
 func (d dbSnapshot) ToSQL(prev dbSnapshot) string {
-	tableNames := make([]string, len(d))
+	tableNames := make([]string, 0, len(d))
 	for tableName := range d {
 		tableNames = append(tableNames, tableName)
 	}
@@ -158,8 +168,8 @@ func newTableSnapshot(t TestingT, db *sql.DB, tableName string, keyColumnNames [
 	columnNames, err := rows.Columns()
 	failOnErr(t, err)
 
-	// if there is no primary key or uniqueness constraint, use all columns as key
-	// (this means that diffs will only ever show INSERT and DELETE, not UPDATE)
+	// if there is no primary key or uniqueness constraint (depending on what was configured in newDBSnapshot),
+	// use all columns as key (this means that diffs will only ever show INSERT and DELETE, not UPDATE)
 	if len(keyColumnNames) == 0 {
 		keyColumnNames = columnNames
 	}
