@@ -12,7 +12,7 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/common v0.72.1
-	github.com/rabbitmq/amqp091-go v1.15.0
+	github.com/rabbitmq/amqp091-go v1.16.0
 	github.com/sapcc/go-api-declarations v1.25.1
 	go.xyrillian.de/gg v1.19.0
 	gopkg.in/yaml.v2 v2.4.0
