@@ -7,6 +7,63 @@ a RabbitMQ server (with sane defaults) and publishing audit messages in the CADF
 Events are serialized into the subset of CADF that Hermes (https://github.com/sapcc/hermes) can consume.
 
 To use this library, build an Auditor object, then use its Record() function to push events.
+
+# Backing store
+
+Events that cannot be published right away (e.g. while RabbitMQ is unreachable) are put in a backing store,
+from which publishing is retried once per minute. By default, the backing store keeps events in memory without limit,
+so they are lost when the process exits.
+
+To keep events across restarts, the application can offer more types of backing store in AuditorOpts.BackingStoreFactories.
+The operator then selects one through the environment variable "${PREFIX}_BACKING_STORE",
+which contains a JSON payload like `{"type":"<type>","params":{...}}`.
+For example, an application with a PostgreSQL database could do:
+
+	auditor, err := audittools.NewAuditor(ctx, audittools.AuditorOpts{
+		EnvPrefix: "MYSERVICE_AUDIT_RABBITMQ",
+		Observer:  observer,
+		BackingStoreFactories: map[string]audittools.BackingStoreFactory{
+			"sql": audittools.SQLBackingStoreFactoryWithPostgresDB(db),
+		},
+	})
+
+	# in the environment of the process
+	MYSERVICE_AUDIT_RABBITMQ_BACKING_STORE='{"type":"sql"}'
+
+The type "memory" (see NewInMemoryBackingStore) is always available.
+Applications that do not use EnvPrefix can build a BackingStore themselves and put it in AuditorOpts.BackingStore.
+
+Besides the memory store, this package provides two types of backing store.
+SQLBackingStoreFactoryWithPostgresDB is the right choice for applications that already have a PostgreSQL database.
+NewFileBackingStore keeps events in files, and is only useful if each replica has its own persistent volume,
+because files on the container filesystem are lost when the pod is replaced.
+
+If the backing store is full or cannot be written to, no further events are taken until that event can be published or stored,
+so Record() blocks once its small buffer has filled up.
+Events that Record() has accepted, but that were neither published nor written to the backing store yet
+(at most 21: the 20 events in its buffer and the one being processed) only exist in memory,
+so they are lost when the process exits, even with a durable backing store.
+Events from the backing store may be published out of order, and may be published twice
+if the process exits after publishing them, but before removing them from the backing store,
+or if removing them from the backing store fails.
+
+# SQL backing store
+
+The SQL backing store keeps events in a table like the one below.
+The application must create this table, e.g. in its schema migrations (see pgruntime.ConnectionBehavior).
+On startup, the SQL backing store only checks that the table exists.
+
+	CREATE TABLE audit_events (
+		id         BIGSERIAL NOT NULL PRIMARY KEY,
+		event_data JSONB     NOT NULL
+	);
+
+Several processes can share one table, e.g. multiple replicas of the same API.
+Each stored event is then published by only one of them.
+But processes that publish to different RabbitMQ queues must use different tables,
+because the table does not record which queue an event belongs to.
+The gauge "audittools_backing_store_events" counts all events in the table,
+so every process that shares the table reports the same value.
 */
 package audittools
 
@@ -15,8 +72,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -52,6 +111,7 @@ type AuditorOpts struct {
 	//   - "${PREFIX}_USERNAME" (defaults to "guest")
 	//   - "${PREFIX}_PASSWORD" (defaults to "guest")
 	//   - "${PREFIX}_QUEUE_NAME" (required)
+	//   - "${PREFIX}_BACKING_STORE" (defaults to `{"type":"memory"}`, see "Backing store" in the package documentation)
 	EnvPrefix string
 
 	// Required if EnvPrefix is empty, ignored otherwise.
@@ -63,7 +123,21 @@ type AuditorOpts struct {
 	// The following metrics are registered:
 	//   - "audittools_successful_submissions" (counter, no labels)
 	//   - "audittools_failed_submissions" (counter, no labels)
+	// The backing stores in this package also register these metrics with this registry:
+	//   - "audittools_backing_store_writes_total" (counter, no labels)
+	//   - "audittools_backing_store_reads_total" (counter, no labels)
+	//   - "audittools_backing_store_errors_total" (counter, label "operation")
+	//   - "audittools_backing_store_events" (gauge, no labels; memory and SQL backing stores only)
+	//   - "audittools_backing_store_size_bytes" and "audittools_backing_store_files" (gauges, no labels; file backing store only)
 	Registry prometheus.Registerer
+
+	// Optional. If given, events that cannot be published right away are put in this BackingStore.
+	// Otherwise, the backing store is chosen through "${PREFIX}_BACKING_STORE" (see "Backing store" in the package documentation).
+	BackingStore BackingStore
+
+	// Optional. More types of backing store that can be chosen through "${PREFIX}_BACKING_STORE", keyed by type name.
+	// The type "memory" (NewInMemoryBackingStore) is always available.
+	BackingStoreFactories map[string]BackingStoreFactory
 }
 
 func (opts AuditorOpts) getConnectionOptions() (rabbitURL url.URL, queueName string, err error) {
@@ -145,17 +219,52 @@ func NewAuditor(ctx context.Context, opts AuditorOpts) (Auditor, error) {
 	if err != nil {
 		return nil, err
 	}
+	backingStore := opts.BackingStore
+	if backingStore == nil {
+		backingStore, err = opts.newBackingStoreFromEnv()
+		if err != nil {
+			return nil, err
+		}
+	}
 	eventChan := make(chan cadf.Event, 20)
 	go auditTrail{
 		EventSink:           eventChan,
 		OnSuccessfulPublish: func() { successCounter.Inc() },
 		OnFailedPublish:     func() { failureCounter.Inc() },
+		BackingStore:        backingStore,
 	}.Commit(ctx, rabbitURL, queueName)
 
 	return &standardAuditor{
 		Observer:  opts.Observer,
 		EventSink: eventChan,
 	}, nil
+}
+
+func (opts AuditorOpts) newBackingStoreFromEnv() (BackingStore, error) {
+	configJSON := `{"type":"memory"}`
+	if opts.EnvPrefix != "" {
+		configJSON = osext.GetenvOrDefault(opts.EnvPrefix+"_BACKING_STORE", configJSON)
+	}
+	var cfg struct {
+		Type   string          `json:"type"`
+		Params json.RawMessage `json:"params"`
+	}
+	err := unmarshalJSONStrict([]byte(configJSON), &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for %s_BACKING_STORE: %w", opts.EnvPrefix, err)
+	}
+	if len(cfg.Params) == 0 {
+		cfg.Params = json.RawMessage(`{}`)
+	}
+
+	factories := map[string]BackingStoreFactory{"memory": NewInMemoryBackingStore}
+	maps.Copy(factories, opts.BackingStoreFactories)
+	factory, ok := factories[cfg.Type]
+	if !ok {
+		return nil, fmt.Errorf("invalid value for %s_BACKING_STORE: unknown backing store type %q (available: %s)",
+			opts.EnvPrefix, cfg.Type, strings.Join(slices.Sorted(maps.Keys(factories)), ", "))
+	}
+	return factory(cfg.Params, opts)
 }
 
 // Record implements the Auditor interface.
