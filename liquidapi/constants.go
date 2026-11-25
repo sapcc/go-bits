@@ -8,7 +8,7 @@ import (
 )
 
 // The following list of regexes is derived from a hardcoded list of valid values
-// for an image's "vmware_ostype" attribute in Nova/Glance. This list was copied from
+// for an image's "vmware_ostype" and "kvm_ostype" attributes in Nova/Glance. This list was copied from
 // https://github.com/openstack/nova/blob/master/nova/virt/vmwareapi/constants.py
 // and the comment over there says:
 //
@@ -21,9 +21,9 @@ import (
 // OSTypeProber. Therefore, we replaced all obvious version numbers in the valid
 // values with placeholders, so that this does not break as easily in the future.
 // We do not recommend utilizing this regex list for anything else other than
-// validating the "vmware_ostype" attribute on existing images.
+// validating the "vmware_ostype" and "kvm_ostype" attributes on existing images.
 
-var isValidVMwareOSTypeRegex = []*regexp.Regexp{
+var isValidOSTypeRegex = []*regexp.Regexp{
 	regexp.MustCompile(`^almalinux_64Guest$`),
 	regexp.MustCompile(`^amazonlinux(\d+)_64Guest$`),
 	regexp.MustCompile(`^asianux(\d+)_64Guest$`),
